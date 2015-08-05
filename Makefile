@@ -34,13 +34,21 @@ $(TMP)/build :
 
 ##### pkg ##########
 
-$(TMP)/pkg-config-$(version).pkg : $(TMP)/install/usr/local/bin/pkg-config
+$(TMP)/pkg-config-$(version).pkg : \
+        $(TMP)/install/usr/local/bin/pkg-config \
+        $(TMP)/install/etc/paths.d/pkg-config.path
 	pkgbuild \
         --root $(TMP)/install \
         --identifier com.ablepear.pkg-config \
         --ownership recommended \
         --version $(version) \
         $@
+
+$(TMP)/install/etc/paths.d/pkg-config.path : pkg-config.path | $(TMP)/install/etc/paths.d
+	cp $< $@
+
+$(TMP)/install/etc/paths.d :
+	mkdir -p $@
 
 
 ##### product ##########
