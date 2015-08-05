@@ -5,8 +5,6 @@ installer_version := 1
 configure_flags := --with-internal-glib
 
 
-##### phony targets ##########
-
 .PHONY : all
 all : pkg-config-$(version).pkg
 
@@ -49,15 +47,29 @@ $(TMP)/pkg-config-$(version).pkg : $(TMP)/install/usr/local/bin/pkg-config
 
 pkg-config-$(version).pkg : \
         $(TMP)/pkg-config-$(version).pkg \
-        distribution.xml \
-        resources/background.png \
-        resources/license.html \
-        resources/welcome.html
+        $(TMP)/distribution.xml \
+        $(TMP)/resources/background.png \
+        $(TMP)/resources/license.html \
+        $(TMP)/resources/welcome.html
 	productbuild \
-        --distribution distribution.xml \
-        --resources resources \
+        --distribution $(TMP)/distribution.xml \
+        --resources $(TMP)/resources \
         --package-path $(TMP) \
         --version $(installer_version) \
         --sign 'Able Pear Software Incorporated' \
         $@
+
+$(TMP)/distribution.xml : distribution.xml | $(TMP)
+	sed -e s/{{version}}/$(version)/g $< > $@
+
+$(TMP)/resources/welcome.html : resources/welcome.html | $(TMP)
+	sed -e s/{{version}}/$(version)/g $< > $@
+
+$(TMP)/resources/background.png \
+$(TMP)/resources/license.html : $(TMP)/% : % | $(TMP)/resources
+	cp $< $@
+
+$(TMP) \
+$(TMP)/resources :
+	mkdir -p $@
 
