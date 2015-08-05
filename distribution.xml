@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<installer-gui-script minSpecVersion="1">
+    <title>pkg-config 0.28 for OS X</title>
+
+    <background alignment="center" file="background.png" mime-type="image/png" scaling="tofit" />
+    <welcome file="welcome.html" mime-type="text/html" />
+    <license file="license.html" mime-type="text/html" />
+
+    <options customize="never" />
+
+    <choices-outline>
+        <line choice="com.ablepear.pkg-config"/>
+    </choices-outline>
+
+    <choice id="com.ablepear.pkg-config">
+        <pkg-ref id="com.ablepear.pkg-config"/>
+    </choice>
+    <pkg-ref id="com.ablepear.pkg-config" version="0" onConclusion="none">pkg-config-0.28.pkg</pkg-ref>
+
+</installer-gui-script>
