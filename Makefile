@@ -4,6 +4,7 @@ version := 0.28
 installer_version := 1
 configure_flags := --with-internal-glib
 
+.SECONDEXPANSION :
 
 .PHONY : all
 all : pkg-config-$(version).pkg
@@ -27,8 +28,8 @@ $(TMP)/build/pkg-config : $(TMP)/build/config.status $(dist_sources)
 $(TMP)/build/config.status : dist/configure | $(TMP)/build
 	cd $(TMP)/build && sh $(abspath $<) $(configure_flags)
 
-$(TMP)/install \
-$(TMP)/build :
+$(TMP)/build \
+$(TMP)/install :
 	mkdir -p $@
 
 
@@ -67,10 +68,8 @@ pkg-config-$(version).pkg : \
         --sign 'Able Pear Software Incorporated' \
         $@
 
-$(TMP)/distribution.xml : distribution.xml | $(TMP)
-	sed -e s/{{version}}/$(version)/g $< > $@
-
-$(TMP)/resources/welcome.html : resources/welcome.html | $(TMP)
+$(TMP)/distribution.xml \
+$(TMP)/resources/welcome.html : $(TMP)/% : % | $$(dir $$@)
 	sed -e s/{{version}}/$(version)/g $< > $@
 
 $(TMP)/resources/background.png \

@@ -2,11 +2,11 @@
 <installer-gui-script minSpecVersion="1">
     <title>pkg-config {{version}}</title>
 
-    <background alignment="center" file="background.png" mime-type="image/png" scaling="tofit" />
-    <welcome file="welcome.html" mime-type="text/html" />
-    <license file="license.html" mime-type="text/html" />
+    <background alignment="center" file="background.png" mime-type="image/png" scaling="tofit"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <license file="license.html" mime-type="text/html"/>
 
-    <options customize="never" />
+    <options customize="never"/>
 
     <choices-outline>
         <line choice="com.ablepear.pkg-config"/>
