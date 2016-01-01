@@ -11,5 +11,10 @@ The installer and related scripts are copyright (c) 2015 Able Pear Software.
 Pkg-config and the installer are distributed under the GNU General Public License, 
 version 2.  See the LICENSE file for details.
 
-[1]: http://www.freedesktop.org/wiki/Software/pkg-config/ "pkg-config"
+## Compatibility
 
+pkg-config 0.29 does not build on OS X 10.11 El Capitan.  See [Bug 92902][2]
+for details.
+
+[1]: http://www.freedesktop.org/wiki/Software/pkg-config/ "pkg-config"
+[2]: https://bugs.freedesktop.org/show_bug.cgi?id=92902 "Bug 92902"
