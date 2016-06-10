@@ -1,14 +1,26 @@
 AC_PREREQ([2.62])
 AC_INIT([pkg-config],
-        [0.28],
+        [0.29.1],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=pkg-config],
         [pkg-config])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([main.c])
 
-dnl Initialize automake and libtool
-AM_INIT_AUTOMAKE([1.11])
+dnl Initialize automake. Sadly, we have to kludge around the automake
+dnl test driver here. We need to use the serial driver (for now), but
+dnl the parallel driver is the default in 1.13. So, we want to specify
+dnl the serial driver. Unfortunately, the option to specify that driver
+dnl didn't exist until 1.12.
+m4_define([automake_version],
+    [m4_esyscmd([${AUTOMAKE-automake} --version |
+                 awk '/^automake/{print $NF}'])])
+m4_define([automake_serial_tests],
+    [m4_if(m4_version_compare(automake_version, [1.12]), [-1],
+                               [], [serial-tests])])
+AM_INIT_AUTOMAKE([1.11 ]automake_serial_tests)
+
+dnl Initialize libtool
 LT_PREREQ([2.2])
 LT_INIT
 
@@ -16,6 +28,9 @@ dnl Support silent build rules, requires at least automake-1.11. Disable
 dnl by either passing --disable-silent-rules to configure or passing V=1
 dnl to make
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+dnl Enable large file support
+AC_SYS_LARGEFILE
 
 dnl Check for programs
 AC_PROG_CC
@@ -31,6 +46,10 @@ dnl autoconf detected for configure.
 AC_ARG_VAR([TESTS_SHELL], [Path to a POSIX shell to be used for testing])
 conf_path="$PATH:`getconf PATH 2>/dev/null`"
 AC_PATH_PROGS([TESTS_SHELL], [bash ksh sh], [$CONFIG_SHELL], [$conf_path])
+
+dnl The built pkg-config to use for testing. This allows it to be set
+dnl from the make command line if necessary.
+AC_SUBST([TESTS_PKG_CONFIG], ['${top_builddir}/pkg-config${EXEEXT}'])
 
 dnl
 dnl Default pkg-config search path
@@ -138,7 +157,7 @@ fi
 AC_SUBST(WARN_CFLAGS)
 
 AC_MSG_CHECKING([for Win32])
-case "$build" in
+case "$host" in
   *-*-mingw*)
     native_win32=yes
   ;;
@@ -147,7 +166,28 @@ case "$build" in
   ;;
 esac
 AC_MSG_RESULT([$native_win32])
+AC_SUBST([native_win32])
 AM_CONDITIONAL(NATIVE_WIN32, [test "x$native_win32" = xyes])
+
+dnl When cross compiling to Windows, Wine might be available to help
+dnl for testing.
+if test "$cross_compiling" = yes && test "$native_win32" = yes; then
+   AC_CHECK_PROG([WINE], [wine], [wine])
+   test "x$WINE" != x && TESTS_PKG_CONFIG='${WINE} '"$TESTS_PKG_CONFIG"
+fi
+
+dnl On Windows, the prefix variable in .pc files can be redfined at
+dnl runtime. Allow the default behavior to be controlled.
+AC_MSG_CHECKING([if prefix should be redefined at runtime])
+AC_ARG_ENABLE([define_prefix],
+  [AS_HELP_STRING([--enable-define-prefix],
+    [redefine prefix in .pc files @<:@default=yes on Win32@:>@])],
+  [],
+  [enable_define_prefix=$native_win32])
+AC_MSG_RESULT([$enable_define_prefix])
+AC_DEFINE_UNQUOTED([ENABLE_DEFINE_PREFIX],
+  [`test "x$enable_define_prefix" = xyes && echo TRUE || echo FALSE`],
+  [Define ${prefix} in .pc files at runtime])
 
 dnl
 dnl Find glib or use internal copy. Required version is 2.16 for
@@ -155,7 +195,7 @@ dnl g_win32_get_package_installation_directory_of_module().
 dnl
 dnl Pull in pkg-config macros to find external glib.
 dnl
-m4_include([pkg.m4])
+m4_include([pkg.m4.in])
 m4_define([glib_module], [glib-2.0 >= 2.16])
 AC_ARG_WITH([internal-glib],
   [AS_HELP_STRING([--with-internal-glib], [use internal glib])],
@@ -215,7 +255,9 @@ AM_CONDITIONAL([HOST_TOOL], [test "x$enable_host_tool" = xyes])
 
 AC_CONFIG_FILES([
 Makefile
+pkg.m4
 check/Makefile
 check/config.sh
+config.h.win32
 ])
 AC_OUTPUT

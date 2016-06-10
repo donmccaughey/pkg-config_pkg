@@ -12,13 +12,14 @@ RESULT=1.0.0
 run_test --modversion simple
 
 # --print-variables, make sure having no variables doesn't crash
-RESULT=""
+RESULT="pcfiledir"
 run_test --print-variables no-variables
 
 RESULT="exec_prefix
-prefix
+includedir
 libdir
-includedir"
+pcfiledir
+prefix"
 run_test --print-variables simple
 
 # --print-provides
@@ -34,8 +35,9 @@ RESULT="private-dep >= 1"
 run_test --print-requires-private requires-test
 
 # --list-all, limit to a subdirectory
-RESULT="sub1 Subdirectory package 1 - Test package 1 for subdirectory
-sub2 Subdirectory package 2 - Test package 2 for subdirectory"
+RESULT="sub1   Subdirectory package 1 - Test package 1 for subdirectory
+sub2   Subdirectory package 2 - Test package 2 for subdirectory
+broken Broken package - Module with broken .pc file"
 PKG_CONFIG_LIBDIR="$srcdir/sub" run_test --list-all
 
 # Check handling when multiple incompatible options are set

@@ -50,6 +50,7 @@ static gboolean want_exists = FALSE;
 static gboolean want_provides = FALSE;
 static gboolean want_requires = FALSE;
 static gboolean want_requires_private = FALSE;
+static gboolean want_validate = FALSE;
 static char *required_atleast_version = NULL;
 static char *required_exact_version = NULL;
 static char *required_max_version = NULL;
@@ -190,6 +191,7 @@ output_opt_cb (const char *opt, const char *arg, gpointer data,
         {
           fprintf (stderr, "Ignoring incompatible output option \"%s\"\n",
                    opt);
+          fflush (stderr);
           return TRUE;
         }
     }
@@ -246,6 +248,8 @@ output_opt_cb (const char *opt, const char *arg, gpointer data,
     want_requires = TRUE;
   else if (strcmp (opt, "--print-requires-private") == 0)
     want_requires_private = TRUE;
+  else if (strcmp (opt, "--validate") == 0)
+    want_validate = TRUE;
   else
     return FALSE;
 
@@ -277,11 +281,10 @@ pkg_uninstalled (Package *pkg)
 }
 
 void
-print_hashtable_key (gpointer key,
-                     gpointer value,
-                     gpointer user_data)
+print_list_data (gpointer data,
+                 gpointer user_data)
 {
-  printf("%s\n", (gchar*)key);
+  g_print ("%s\n", (gchar *)data);
 }
 
 static void
@@ -322,6 +325,7 @@ process_package_args (const char *cmdline, GList **packages, FILE *log)
   if (reqs == NULL)
     {
       fprintf (stderr, "Must specify package names on the command line\n");
+      fflush (stderr);
       return FALSE;
     }
 
@@ -459,13 +463,19 @@ static const GOptionEntry options_table[] = {
   { "print-requires-private", 0, G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK,
     &output_opt_cb, "print which packages the package requires for static "
     "linking", NULL },
-#ifdef G_OS_WIN32
-  { "dont-define-prefix", 0, 0, G_OPTION_ARG_NONE, &dont_define_prefix,
-    "don't try to override the value of prefix for each .pc file found with "
-    "a guesstimated value based on the location of the .pc file", NULL },
+  { "validate", 0, G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK,
+    &output_opt_cb, "validate a package's .pc file", NULL },
+  { "define-prefix", 0, 0, G_OPTION_ARG_NONE, &define_prefix,
+    "try to override the value of prefix for each .pc file found with a "
+    "guesstimated value based on the location of the .pc file", NULL },
+  { "dont-define-prefix", 0, G_OPTION_FLAG_REVERSE, G_OPTION_ARG_NONE,
+    &define_prefix, "don't try to override the value of prefix for each .pc "
+    "file found with a guesstimated value based on the location of the .pc "
+    "file", NULL },
   { "prefix-variable", 0, 0, G_OPTION_ARG_STRING, &prefix_variable,
     "set the name of the variable that pkg-config automatically sets",
     "PREFIX" },
+#ifdef G_OS_WIN32
   { "msvc-syntax", 0, 0, G_OPTION_ARG_NONE, &msvc_syntax,
     "output -l and -L flags for the Microsoft compiler (cl)", NULL },
 #endif
@@ -565,31 +575,32 @@ main (int argc, char **argv)
     }
 
   /* Error printing is determined as follows:
-   *     - for all output options besides --exists and --*-version,
-   *       it's on by default and --silence-errors can turn it off
-   *     - for --exists, --*-version, etc. and no options at all,
+   *     - for --exists, --*-version, --list-all and no options at all,
    *       it's off by default and --print-errors will turn it on
+   *     - for all other output options, it's on by default and
+   *       --silence-errors can turn it off
    */
-  if (!want_exists)
+  if (want_exists || want_list)
+    {
+      debug_spew ("Error printing disabled by default due to use of output "
+                  "options --exists, --atleast/exact/max-version, "
+                  "--list-all or no output option at all. Value of "
+                  "--print-errors: %d\n",
+                  want_verbose_errors);
+
+      /* Leave want_verbose_errors unchanged, reflecting --print-errors */
+    }
+  else
     {
       debug_spew ("Error printing enabled by default due to use of output "
-                  "options besides --exists or --atleast/exact/max-version. "
-                  "Value of --silence-errors: %d\n",
+                  "options besides --exists, --atleast/exact/max-version or "
+                  "--list-all. Value of --silence-errors: %d\n",
                   want_silence_errors);
 
       if (want_silence_errors && getenv ("PKG_CONFIG_DEBUG_SPEW") == NULL)
         want_verbose_errors = FALSE;
       else
         want_verbose_errors = TRUE;
-    }
-  else
-    {
-      debug_spew ("Error printing disabled by default due to use of output "
-                  "options --exists, --atleast/exact/max-version or no "
-                  "output option at all. Value of --print-errors: %d\n",
-                  want_verbose_errors);
-
-      /* Leave want_verbose_errors unchanged, reflecting --print-errors */
     }
 
   if (want_verbose_errors)
@@ -613,6 +624,10 @@ main (int argc, char **argv)
 
   if (pkg_flags == 0 && !want_requires && !want_exists)
     disable_requires();
+
+  /* Allow errors in .pc files when listing all. */
+  if (want_list)
+    parse_strict = FALSE;
 
   if (want_my_version)
     {
@@ -671,8 +686,10 @@ main (int argc, char **argv)
 
   g_string_free (str, TRUE);
 
-  if (want_exists)
-    return 0; /* if we got here, all the packages existed. */
+  /* If the user just wants to check package existence or validate its .pc
+   * file, we're all done. */
+  if (want_exists || want_validate)
+    return 0;
 
   if (want_variable_list)
     {
@@ -682,9 +699,13 @@ main (int argc, char **argv)
         {
           Package *pkg = tmp->data;
           if (pkg->vars != NULL)
-            g_hash_table_foreach(pkg->vars,
-                                 &print_hashtable_key,
-                                 NULL);
+            {
+              /* Sort variables for consistent output */
+              GList *keys = g_hash_table_get_keys (pkg->vars);
+              keys = g_list_sort (keys, (GCompareFunc)g_strcmp0);
+              g_list_foreach (keys, print_list_data, NULL);
+              g_list_free (keys);
+            }
           tmp = g_list_next (tmp);
           if (tmp) printf ("\n");
         }

@@ -24,13 +24,13 @@
 
 #include "pkg.h"
 #include "parse.h"
+#include "rpmvercmp.h"
 
 #ifdef HAVE_MALLOC_H
 # include <malloc.h>
 #endif
 
 #include <sys/types.h>
-#include <dirent.h>
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
@@ -126,10 +126,11 @@ name_ends_in_uninstalled (const char *str)
  * locations, ignoring duplicates
  */
 static void
-scan_dir (const char *dirname)
+scan_dir (char *dirname)
 {
-  DIR *dir;
-  struct dirent *dent;
+  GDir *dir;
+  const gchar *d_name;
+
   int dirnamelen = strlen (dirname);
   /* Use a copy of dirname cause Win32 opendir doesn't like
    * superfluous trailing (back)slashes in the directory name.
@@ -157,35 +158,36 @@ scan_dir (const char *dirname)
         }
     }
 #endif
-  dir = opendir (dirname_copy);
+  dir = g_dir_open (dirname_copy, 0 , NULL);
   g_free (dirname_copy);
+
+  scanned_dir_count += 1;
+
   if (!dir)
     {
-      debug_spew ("Cannot open directory '%s' in package search path: %s\n",
-                  dirname, g_strerror (errno));
+      debug_spew ("Cannot open directory #%i '%s' in package search path: %s\n",
+                  scanned_dir_count, dirname, g_strerror (errno));
       return;
     }
 
-  debug_spew ("Scanning directory '%s'\n", dirname);
-
-  scanned_dir_count += 1;
+  debug_spew ("Scanning directory #%i '%s'\n", scanned_dir_count, dirname);
   
-  while ((dent = readdir (dir)))
+  while ((d_name = g_dir_read_name(dir)))
     {
-      int len = strlen (dent->d_name);
+      int len = strlen (d_name);
 
-      if (ends_in_dotpc (dent->d_name))
+      if (ends_in_dotpc (d_name))
         {
-          char *pkgname = g_malloc (len - 2);
+          char *pkgname = g_malloc (len - EXT_LEN + 1);
 
-          debug_spew ("File '%s' appears to be a .pc file\n", dent->d_name);
+          debug_spew ("File '%s' appears to be a .pc file\n", d_name);
           
-	  strncpy (pkgname, dent->d_name, len - EXT_LEN);
+          strncpy (pkgname, d_name, len - EXT_LEN);
           pkgname[len-EXT_LEN] = '\0';
 
           if (g_hash_table_lookup (locations, pkgname))
             {
-              debug_spew ("File '%s' ignored, we already know about package '%s'\n", dent->d_name, pkgname);
+              debug_spew ("File '%s' ignored, we already know about package '%s'\n", d_name, pkgname);
               g_free (pkgname);
             }
           else
@@ -193,7 +195,7 @@ scan_dir (const char *dirname)
               char *filename = g_malloc (dirnamelen + 1 + len + 1);
               strncpy (filename, dirname, dirnamelen);
               filename[dirnamelen] = G_DIR_SEPARATOR;
-              strcpy (filename + dirnamelen + 1, dent->d_name);
+              strcpy (filename + dirnamelen + 1, d_name);
               
 	      if (g_file_test(filename, G_FILE_TEST_IS_REGULAR) == TRUE) {
 		  g_hash_table_insert (locations, pkgname, filename);
@@ -210,10 +212,10 @@ scan_dir (const char *dirname)
       else
         {
           debug_spew ("Ignoring file '%s' in search directory; not a .pc file\n",
-                      dent->d_name);
+                      d_name);
         }
     }
-  closedir(dir);
+  g_dir_close (dir);
 }
 
 static Package *
@@ -263,6 +265,7 @@ static Package *
 internal_get_package (const char *name, gboolean warn)
 {
   Package *pkg = NULL;
+  char *key;
   const char *location;
   GList *iter;
   
@@ -314,21 +317,8 @@ internal_get_package (const char *name, gboolean warn)
       return NULL;
     }
 
-  debug_spew ("Reading '%s' from file '%s'\n", name, location);
-  pkg = parse_package_file (location, ignore_requires, ignore_private_libs, 
-			    ignore_requires_private);
-  
-  if (pkg == NULL)
-    {
-      debug_spew ("Failed to parse '%s'\n", location);
-      return NULL;
-    }
-  
-  if (strstr (location, "uninstalled.pc"))
-    pkg->uninstalled = TRUE;
-  
   if (location != name)
-    pkg->key = g_strdup (name);
+    key = g_strdup (name);
   else
     {
       /* need to strip package name out of the filename */
@@ -340,9 +330,23 @@ internal_get_package (const char *name, gboolean warn)
         --start;
 
       g_assert (end >= start);
-      
-      pkg->key = g_strndup (start, end - start);
+
+      key = g_strndup (start, end - start);
     }
+
+  debug_spew ("Reading '%s' from file '%s'\n", name, location);
+  pkg = parse_package_file (key, location, ignore_requires,
+                            ignore_private_libs, ignore_requires_private);
+  g_free (key);
+
+  if (pkg == NULL)
+    {
+      debug_spew ("Failed to parse '%s'\n", location);
+      return NULL;
+    }
+
+  if (strstr (location, "uninstalled.pc"))
+    pkg->uninstalled = TRUE;
 
   pkg->path_position =
     GPOINTER_TO_INT (g_hash_table_lookup (path_positions, pkg->key));
@@ -916,7 +920,6 @@ verify_package (Package *pkg)
             }
           system_dir_iter = system_dir_iter->next;
         }
-      iter = iter->next;
     }
   g_list_free (system_directories);
 
@@ -988,6 +991,10 @@ packages_get_flags (GList *pkgs, FlagType flags)
       g_free (cur);
     }
 
+  /* Strip trailing space. */
+  if (str->len > 0 && str->str[str->len - 1] == ' ')
+    g_string_truncate (str, str->len - 1);
+
   debug_spew ("returning flags string \"%s\"\n", str->str);
   return g_string_free (str, FALSE);
 }
@@ -1012,6 +1019,24 @@ define_global_variable (const char *varname,
 }
 
 char *
+var_to_env_var (const char *pkg, const char *var)
+{
+  char *new = g_strconcat ("PKG_CONFIG_", pkg, "_", var, NULL);
+  char *p;
+  for (p = new; *p != 0; p++)
+    {
+      char c = g_ascii_toupper (*p);
+
+      if (!g_ascii_isalnum (c))
+        c = '_';
+
+      *p = c;
+    }
+
+  return new;
+}
+
+char *
 package_get_var (Package *pkg,
                  const char *var)
 {
@@ -1019,155 +1044,57 @@ package_get_var (Package *pkg,
 
   if (globals)
     varval = g_strdup (g_hash_table_lookup (globals, var));
-  
+
+  /* Allow overriding specific variables using an environment variable of the
+   * form PKG_CONFIG_$PACKAGENAME_$VARIABLE
+   */
+  if (pkg->key)
+    {
+      char *env_var = var_to_env_var (pkg->key, var);
+      const char *env_var_content = g_getenv (env_var);
+      g_free (env_var);
+      if (env_var_content)
+        {
+          debug_spew ("Overriding variable '%s' from environment\n", var);
+          return g_strdup (env_var_content);
+        }
+    }
+
+
   if (varval == NULL && pkg->vars)
     varval = g_strdup (g_hash_table_lookup (pkg->vars, var));
-
-  /* Magic "pcfiledir" variable */
-  if (varval == NULL && pkg->pcfiledir && strcmp (var, "pcfiledir") == 0)
-    varval = g_strdup (pkg->pcfiledir);
 
   return varval;
 }
 
 char *
-packages_get_var (GList     *pkgs,
+packages_get_var (GList      *pkgs,
                   const char *varname)
 {
   GList *tmp;
   GString *str;
-  char *retval;
-  
-  str = g_string_new ("");
-  
+
+  str = g_string_new (NULL);
+
   tmp = pkgs;
   while (tmp != NULL)
     {
       Package *pkg = tmp->data;
       char *var;
 
-      var = package_get_var (pkg, varname);
-      
+      var = parse_package_variable (pkg, varname);
       if (var)
         {
+          if (str->len > 0)
+            g_string_append_c (str, ' ');
           g_string_append (str, var);
-          g_string_append_c (str, ' ');                
           g_free (var);
         }
 
       tmp = g_list_next (tmp);
     }
 
-  /* chop last space */
-  if (str->len > 0)
-      str->str[str->len - 1] = '\0';
-  retval = str->str;
-  g_string_free (str, FALSE);
-
-  return retval;
-}
-
-
-
-/* Stolen verbatim from rpm/lib/misc.c 
-   RPM is Copyright (c) 1998 by Red Hat Software, Inc.,
-   and may be distributed under the terms of the GPL and LGPL.
-*/
-/* compare alpha and numeric segments of two versions */
-/* return 1: a is newer than b */
-/*        0: a and b are the same version */
-/*       -1: b is newer than a */
-static int rpmvercmp(const char * a, const char * b) {
-    char oldch1, oldch2;
-    char * str1, * str2;
-    char * one, * two;
-    int rc;
-    int isnum;
-    
-    /* easy comparison to see if versions are identical */
-    if (!strcmp(a, b)) return 0;
-
-    str1 = g_alloca(strlen(a) + 1);
-    str2 = g_alloca(strlen(b) + 1);
-
-    strcpy(str1, a);
-    strcpy(str2, b);
-
-    one = str1;
-    two = str2;
-
-    /* loop through each version segment of str1 and str2 and compare them */
-    while (*one && *two) {
-	while (*one && !isalnum((guchar)*one)) one++;
-	while (*two && !isalnum((guchar)*two)) two++;
-
-	/* If we ran to the end of either, we are finished with the loop */
-	if (!(*one && *two)) break;
-
-	str1 = one;
-	str2 = two;
-
-	/* grab first completely alpha or completely numeric segment */
-	/* leave one and two pointing to the start of the alpha or numeric */
-	/* segment and walk str1 and str2 to end of segment */
-	if (isdigit((guchar)*str1)) {
-	    while (*str1 && isdigit((guchar)*str1)) str1++;
-	    while (*str2 && isdigit((guchar)*str2)) str2++;
-	    isnum = 1;
-	} else {
-	    while (*str1 && isalpha((guchar)*str1)) str1++;
-	    while (*str2 && isalpha((guchar)*str2)) str2++;
-	    isnum = 0;
-	}
-		
-	/* save character at the end of the alpha or numeric segment */
-	/* so that they can be restored after the comparison */
-	oldch1 = *str1;
-	*str1 = '\0';
-	oldch2 = *str2;
-	*str2 = '\0';
-
-	/* take care of the case where the two version segments are */
-	/* different types: one numeric and one alpha */
-	if (one == str1) return -1;	/* arbitrary */
-	/* XXX See patch #60884 (and details) from bugzilla #50977. */
-	if (two == str2) return (isnum ? 1 : -1);
-
-	if (isnum) {
-	    /* this used to be done by converting the digit segments */
-	    /* to ints using atoi() - it's changed because long  */
-	    /* digit segments can overflow an int - this should fix that. */
-	  
-	    /* throw away any leading zeros - it's a number, right? */
-	    while (*one == '0') one++;
-	    while (*two == '0') two++;
-
-	    /* whichever number has more digits wins */
-	    if (strlen(one) > strlen(two)) return 1;
-	    if (strlen(two) > strlen(one)) return -1;
-	}
-
-	/* strcmp will return which one is greater - even if the two */
-	/* segments are alpha or if they are numeric.  don't return  */
-	/* if they are equal because there might be more segments to */
-	/* compare */
-	rc = strcmp(one, two);
-	if (rc) return rc;
-	
-	/* restore character that was replaced by null above */
-	*str1 = oldch1;
-	one = str1;
-	*str2 = oldch2;
-	two = str2;
-    }
-
-    /* this catches the case where all numeric and alpha segments have */
-    /* compared identically but the segment sepparating characters were */
-    /* different */
-    if ((!*one) && (!*two)) return 0;
-
-    /* whichever version still has characters left over wins */
-    if (!*one) return -1; else return 1;
+  return g_string_free (str, FALSE);
 }
 
 int

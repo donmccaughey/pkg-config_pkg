@@ -29,27 +29,27 @@ AM_CFLAGS = \
 
 bin_PROGRAMS = pkg-config
 pkg_config_LDADD = $(GLIB_LIBS)
-pkg_config_SOURCES= \
-	pkg.h \
-	pkg.c \
-	parse.h \
-	parse.c \
-	main.c
+
+include Makefile.sources
 
 if HOST_TOOL
 host_tool = $(host)-pkg-config$(EXEEXT)
 install-exec-hook:
-	cd $(DESTDIR)$(bindir) && $(LN) pkg-config$(EXEEXT) $(host_tool)
+	cd $(DESTDIR)$(bindir) && $(LN) -f pkg-config$(EXEEXT) $(host_tool)
 uninstall-hook:
 	cd $(DESTDIR)$(bindir) && rm -f $(host_tool)
 endif
 
 # Various data files
 m4dir = $(datadir)/aclocal
-dist_m4_DATA = pkg.m4
+m4_DATA = pkg.m4
 dist_doc_DATA = pkg-config-guide.html
 dist_man_MANS = pkg-config.1
-EXTRA_DIST = README.win32
+EXTRA_DIST =	\
+	README.win32		\
+	detectenv-msvc.mak	\
+	Makefile.vc		\
+	config.h.win32
 
 # gcov test coverage
 gcov:

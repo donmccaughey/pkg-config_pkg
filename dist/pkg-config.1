@@ -9,17 +9,20 @@ pkg-config \- Return metainformation about installed libraries
 .SH SYNOPSIS
 .PP
 .B pkg-config
-[\-\-modversion] [\-\-version] [\-\-help] [\-\-print-errors]
+[\-\-modversion] [\-\-version] [\-\-help]
+[\-\-atleast-pkgconfig-version=VERSION]
+[\-\-print-errors] [\-\-short-errors]
 [\-\-silence-errors] [\-\-errors-to-stdout] [\-\-debug]
 [\-\-cflags] [\-\-libs] [\-\-libs-only-L]
 [\-\-libs-only-l] [\-\-cflags-only-I]
+[\-\-libs-only-other] [\-\-cflags-only-other]
 [\-\-variable=VARIABLENAME]
 [\-\-define-variable=VARIABLENAME=VARIABLEVALUE]
 [\-\-print-variables]
 [\-\-uninstalled]
 [\-\-exists] [\-\-atleast-version=VERSION] [\-\-exact-version=VERSION]
-[\-\-max-version=VERSION] [\-\-list\-all] [LIBRARIES...]
-[\-\-print-provides] [\-\-print-requires] [\-\-print-requires-private] [LIBRARIES...]
+[\-\-max-version=VERSION] [\-\-validate] [\-\-list\-all] [\-\-print-provides]
+[\-\-print-requires] [\-\-print-requires-private] [LIBRARIES...]
 .SH DESCRIPTION
 
 The \fIpkg-config\fP program is used to retrieve information about
@@ -71,6 +74,9 @@ Displays the version of
 .I pkg-config
 and terminates.
 .TP
+.I "--atleast-pkgconfig-version=VERSION"
+Requires at least the given version of pkg-config.
+.TP
 .I "--help"
 Displays a help message and terminates.
 .TP
@@ -85,6 +91,9 @@ in scripts that want to control what's output. This option can be used
 alone (to just print errors encountered locating modules on the 
 command line) or with other options. The PKG_CONFIG_DEBUG_SPEW
 environment variable overrides this option.
+.TP
+.I "--short-errors"
+Print short error messages.
 .TP
 .I "--silence-errors"
 If one or more of the modules on the command line, or their
@@ -119,7 +128,10 @@ line.
 .I "--cflags-only-I"
 This prints the -I part of "--cflags". That is, it defines the header
 search path but doesn't specify anything else.
-.TP 
+.TP
+.I "--cflags-only-other"
+This prints parts of "--cflags" not covered by "--cflags-only-I".
+.TP
 .I "--libs"
 This option is identical to "--cflags", only it prints the link
 flags. As with "--cflags", duplicate flags are merged (maintaining
@@ -135,6 +147,10 @@ This prints the -l part of "--libs" for the libraries specified on
 the command line. Note that the union of "--libs-only-l" and
 "--libs-only-L" may be smaller than "--libs", due to flags such as
 -rdynamic.
+.TP
+.I "--libs-only-other"
+This prints the parts of "--libs" not covered by "--libs-only-L" and
+"--libs-only-l", such as "--pthread".
 .TP
 .I "--variable=VARIABLENAME"
 This returns the value of a variable defined in a package's \fI.pc\fP
@@ -198,6 +214,18 @@ constraint after each package name, for example:
 Remember to use \-\-print-errors if you want error messages. When no
 output options are supplied to \fIpkg-config\fP, \-\-exists is implied.
 .TP
+.I "--validate"
+Checks the syntax of a package's
+.I .pc
+file for validity. This is the same as \-\-exists except that
+dependencies are not verified. This can be useful for package developers
+to test their
+.I .pc
+file prior to release:
+.nf
+  $ pkg-config --validate ./my-package.pc
+.fi
+.TP
 .I "--msvc-syntax"
 This option is available only on Windows. It causes \fIpkg-config\fP
 to output -l and -L flags in the form recognized by the Microsoft
@@ -208,14 +236,40 @@ prints \fIfoo.lib\fP. Note that the --libs output consists of flags
 for the linker, and should be placed on the cl command line after a
 /link switch.
 .TP
+.I "--define-prefix"
+.TQ
 .I "--dont-define-prefix"
-This option is available only on Windows. It prevents \fIpkg-config\fP
-from automatically trying to override the value of the variable
-"prefix" in each .pc file.
+These options control whether
+.I pkg-config
+overrides the value of the variable
+.I prefix
+in each .pc file. With \-\-define-prefix,
+.I pkg-config
+uses the installed location of the .pc file to determine the
+prefix. \-\-dont-define-prefix prevents this behavior. The default is
+usually \-\-define-prefix.
+
+When this feature is enabled and a .pc file is found in a directory named
+.IR pkgconfig ,
+the prefix for that package is assumed to be the grandparent of the
+directory where the file was found, and the
+.I prefix
+variable is overridden for that file accordingly.
+
+If the value of a variable in a .pc file begins with the original,
+non-overridden, value of the
+.I prefix
+variable, then the overridden value of
+.I prefix
+is used instead. This allows the feature to work even when the variables
+have been expanded in the .pc file.
 .TP
 .I "--prefix-variable=PREFIX"
-Also this option is available only on Windows. It sets the name of the
-variable that \fIpkg-config\fP automatically sets as described above.
+Set the name of the variable that
+.I pkg-config
+overrides instead of
+.I prefix
+when using the \-\-define-prefix feature.
 .TP
 .I "--static"
 Output libraries suitable for static linking.  That means including
@@ -280,29 +334,72 @@ become -I/var/target/usr/include/libfoo with a PKG_CONFIG_SYSROOT_DIR
 equal to /var/target (same rule apply to -L)
 .TP
 .I "PKG_CONFIG_LIBDIR"
-Replaces the default \fIpkg-config\fP search directory, usually \fI/usr/lib/pkgconfig\fP
-.\"
-.SH QUERYING PKG-CONFIG'S DEFAULTS
+Replaces the default
 .I pkg-config
-can be used to query itself for the default search path, version number
-and other information, for instance using:
+search directory, usually
+.IR /usr/lib/pkgconfig : /usr/share/pkgconfig .
+.TP
+.I "PKG_CONFIG_$PACKAGE_$VARIABLE"
+Overrides the variable VARIABLE in the package PACKAGE. The environment
+variable should have the package name and package variable upper cased
+with non-alphanumeric characters converted to underscores. For example,
+setting PKG_CONFIG_GLADEUI_2_0_CATALOGDIR will override the variable
+"catalogdir" in the "gladeui-2.0" package.
+.\"
+.SH PKG-CONFIG DERIVED VARIABLES
+.I pkg-config
+sets a few metadata variables that can be used in .pc files or queried
+at runtime.
+.TP
+.I pc_path
+The default search path used by
+.I pkg-config
+when searching for .pc files. This can be used in a query for the
+.I pkg-config
+module itself itself:
 .nf
   $ pkg-config --variable pc_path pkg-config
 .fi
-or
+.TP
+.I pcfiledir
+The installed location of the .pc file. This can be used to query the
+location of the .pc file for a particular module, but it can also be
+used to make .pc files relocatable. For instance:
 .nf
-  $ pkg-config --modversion pkg-config
+prefix=${pcfiledir}/../..
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
 .fi
+.TP
+.I pc_sysrootdir
+The sysroot directory set by the user. When the sysroot directory has
+not been set, this value is
+.IR / .
+See the
+.I PKG_CONFIG_SYSROOT_DIR
+environment variable for more details.
+.TP
+.I pc_top_builddir
+Location of the user's top build directory when calling
+.IR pkg-config.
+This is useful to dynamically set paths in uninstalled .pc files. See
+the
+.I PKG_CONFIG_TOP_BUILD_DIR
+environment variable for more details.
+.\"
 .SH WINDOWS SPECIALITIES
-If a .pc file is found in a directory that matches the usual
-conventions (i.e., ends with \\lib\\pkgconfig or \\share\\pkgconfig),
-the prefix for that package is assumed to be the grandparent of the
-directory where the file was found, and the \fIprefix\fP variable is
-overridden for that file accordingly.
-
-If the value of a variable in a .pc file begins with the original,
-non-overridden, value of the \fIprefix\fP variable, then the overridden
-value of \fIprefix\fP is used instead.
+The
+.I pkg-config
+default search path is ignored on Windows. Instead, the search path is
+constructed by using the installed directory of
+.I pkg-config
+and then appending
+.I lib\epkgconfig
+and
+.IR share\epkgconfig .
+This can be augmented or replaced using the standard environment
+variables described above.
 .\"
 .SH AUTOCONF MACROS
 .TP
@@ -333,11 +430,21 @@ VARIABLE-PREFIX will simply use the _LIBS and _CFLAGS variables set from
 the previous usage without calling \fIpkg-config\fP again.
 .\"
 .TP
+.I "PKG_PREREQ(MIN-VERSION)"
+Checks that the version of the pkg-config autoconf macros in use is at
+least MIN-VERSION. This can be used to ensure a particular pkg-config
+macro will be available.
+.\"
+.TP
 .I "PKG_PROG_PKG_CONFIG([MIN-VERSION])"
 
 Defines the PKG_CONFIG variable to the best pkg-config available,
 useful if you need pkg-config but don't want to use PKG_CHECK_MODULES.
 .\"
+.TP
+.I "PKG_CHECK_MODULES_STATIC(VARIABLE-PREFIX, MODULES [,ACTION-IF-FOUND [,ACTION-IF-NOT-FOUND]])"
+Enables static linking through --static prior to calling
+PKG_CHECK_MODULES.
 .TP
 .I "PKG_CHECK_EXISTS(MODULES, [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])"
 

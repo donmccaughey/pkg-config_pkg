@@ -72,14 +72,8 @@
    */
 #undef HAVE_ALLOCA_H
 
-/* Define to 1 if you have the <arpa/nameser_compat.h> header file. */
-#undef HAVE_ARPA_NAMESER_COMPAT_H
-
 /* Define to 1 if you have the `atexit' function. */
 #undef HAVE_ATEXIT
-
-/* Define to 1 if you have the <attr/xattr.h> header file. */
-#undef HAVE_ATTR_XATTR_H
 
 /* Define if you have a version of the snprintf function with semantics as
    specified by the ISO C99 standard. */
@@ -129,6 +123,9 @@
 /* we have the eventfd(2) system call */
 #undef HAVE_EVENTFD
 
+/* Define to 1 if you have the `fallocate' function. */
+#undef HAVE_FALLOCATE
+
 /* Define to 1 if you have the `fchmod' function. */
 #undef HAVE_FCHMOD
 
@@ -171,6 +168,9 @@
 /* Define to 1 if you have the `getpwuid' function. */
 #undef HAVE_GETPWUID
 
+/* Define to 1 if you have the `getresuid' function. */
+#undef HAVE_GETRESUID
+
 /* Define to 1 if you have the `getvfsstat' function. */
 #undef HAVE_GETVFSSTAT
 
@@ -185,6 +185,9 @@
 
 /* Define to 1 if you have the `hasmntopt' function. */
 #undef HAVE_HASMNTOPT
+
+/* Define to 1 if you have the `if_indextoname' function. */
+#undef HAVE_IF_INDEXTONAME
 
 /* Define to 1 if you have the `if_nametoindex' function. */
 #undef HAVE_IF_NAMETOINDEX
@@ -208,6 +211,15 @@
 /* Define if we have struct ip_mreqn */
 #undef HAVE_IP_MREQN
 
+/* Define to 1 if you have the `issetugid' function. */
+#undef HAVE_ISSETUGID
+
+/* Define to 1 if you have the `kevent' function. */
+#undef HAVE_KEVENT
+
+/* Define to 1 if you have the `kqueue' function. */
+#undef HAVE_KQUEUE
+
 /* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
 #undef HAVE_LANGINFO_CODESET
 
@@ -222,6 +234,9 @@
 
 /* Define to 1 if you have the `lchown' function. */
 #undef HAVE_LCHOWN
+
+/* Define if you have the __libc_enable_secure variable (GNU libc, eglibc) */
+#undef HAVE_LIBC_ENABLE_SECURE
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
@@ -271,9 +286,6 @@
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
-/* Define to 1 if you have the <netdb.h> header file. */
-#undef HAVE_NETDB_H
-
 /* We have AF_NETLINK sockets */
 #undef HAVE_NETLINK
 
@@ -313,6 +325,12 @@
 /* Have function pthread_condattr_setclock */
 #undef HAVE_PTHREAD_CONDATTR_SETCLOCK
 
+/* Have function pthread_cond_timedwait_monotonic */
+#undef HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC
+
+/* Have function pthread_cond_timedwait_monotonic_np */
+#undef HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC_NP
+
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
 
@@ -322,14 +340,11 @@
 /* Define to 1 if you have the `readlink' function. */
 #undef HAVE_READLINK
 
+/* Define to 1 if you have the 'res_init' function. */
+#undef HAVE_RES_INIT
+
 /* Define to 1 if you have the <sched.h> header file. */
 #undef HAVE_SCHED_H
-
-/* Define to 1 if libselinux is available */
-#undef HAVE_SELINUX
-
-/* Define to 1 if you have the <selinux/selinux.h> header file. */
-#undef HAVE_SELINUX_SELINUX_H
 
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
@@ -449,9 +464,18 @@
 /* Define to 1 if you have the `symlink' function. */
 #undef HAVE_SYMLINK
 
+/* Define to 1 if you have the `sysctlbyname' function. */
+#undef HAVE_SYSCTLBYNAME
+
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 #undef HAVE_SYS_DIR_H
+
+/* Define to 1 if you have the <sys/event.h> header file. */
+#undef HAVE_SYS_EVENT_H
+
+/* Define to 1 if you have the <sys/filio.h> header file. */
+#undef HAVE_SYS_FILIO_H
 
 /* Define to 1 if you have the <sys/inotify.h> header file. */
 #undef HAVE_SYS_INOTIFY_H
@@ -523,9 +547,6 @@
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #undef HAVE_SYS_WAIT_H
 
-/* Define to 1 if you have the <sys/xattr.h> header file. */
-#undef HAVE_SYS_XATTR_H
-
 /* Define to 1 if you have the `timegm' function. */
 #undef HAVE_TIMEGM
 
@@ -572,33 +593,17 @@
 /* Have a working bcopy */
 #undef HAVE_WORKING_BCOPY
 
-/* Define to 1 if you have the <wspiapi.h> header file. */
-#undef HAVE_WSPIAPI_H
-
-/* Define to 1 if xattr is available */
-#undef HAVE_XATTR
-
-/* Define to 1 if xattr API uses XATTR_NOFOLLOW */
-#undef HAVE_XATTR_NOFOLLOW
-
 /* Define to 1 if you have the <xlocale.h> header file. */
 #undef HAVE_XLOCALE_H
 
 /* Define to 1 if you have the `_NSGetEnviron' function. */
 #undef HAVE__NSGETENVIRON
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
-
-/* Do we cache iconv descriptors */
-#undef NEED_ICONV_CACHE
 
 /* didn't find fd_set */
 #undef NO_FD_SET
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
@@ -621,12 +626,6 @@
 /* define if posix_memalign() can allocate any size */
 #undef POSIX_MEMALIGN_WITH_COMPLIANT_ALLOCS
 
-/* whether realloc (NULL,) works */
-#undef REALLOC_0_WORKS
-
-/* Define if you have correct malloc prototypes */
-#undef SANE_MALLOC_PROTOS
-
 /* The size of `char', as computed by sizeof. */
 #undef SIZEOF_CHAR
 
@@ -644,6 +643,9 @@
 
 /* The size of `size_t', as computed by sizeof. */
 #undef SIZEOF_SIZE_T
+
+/* The size of `ssize_t', as computed by sizeof. */
+#undef SIZEOF_SSIZE_T
 
 /* The size of `void *', as computed by sizeof. */
 #undef SIZEOF_VOID_P
@@ -665,6 +667,15 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Use no threads */
+#undef THREADS_NONE
+
+/* Use pthreads */
+#undef THREADS_POSIX
+
+/* Use w32 threads */
+#undef THREADS_WIN32
+
 /* Using GNU libiconv */
 #undef USE_LIBICONV_GNU
 
@@ -676,6 +687,28 @@
 
 /* Define to use statvfs() */
 #undef USE_STATVFS
+
+/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -697,11 +730,24 @@
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 
-/* Make all glibc extensions visible */
-#undef _GNU_SOURCE
+/* defines how to decorate public symbols while building */
+#undef _GLIB_EXTERN
 
 /* Define for large files, on AIX-style hosts. */
 #undef _LARGE_FILES
+
+/* Define to 1 if on MINIX. */
+#undef _MINIX
+
+/* Define to 2 if the system does not provide POSIX.1 features except with
+   this defined. */
+#undef _POSIX_1_SOURCE
+
+/* Define to 1 if you need to in order for `stat' and other things to work. */
+#undef _POSIX_SOURCE
+
+/* Target the Windows XP API */
+#undef _WIN32_WINNT
 
 /* Needed to get declarations for msg_control and msg_controllen on Solaris */
 #undef _XOPEN_SOURCE
@@ -711,6 +757,9 @@
 
 /* Needed to get declarations for msg_control and msg_controllen on Solaris */
 #undef __EXTENSIONS__
+
+/* compiler supports atomic operations */
+#undef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

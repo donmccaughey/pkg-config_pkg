@@ -1,4 +1,3 @@
-TESTS_PKG_CONFIG = $(top_builddir)/pkg-config$(EXEEXT)
 TESTS_ENVIRONMENT = PKG_CONFIG='$(TESTS_PKG_CONFIG)' $(TESTS_SHELL)
 
 TESTS = \
@@ -13,7 +12,7 @@ TESTS = \
 	check-includedir \
 	check-conflicts \
 	check-missing \
-	check-idirafter \
+	check-special-flags \
 	check-sort-order \
 	check-duplicate-flags \
 	check-whitespace \
@@ -26,7 +25,11 @@ TESTS = \
 	check-uninstalled \
 	check-debug \
 	check-gtk \
-	check-tilde
+	check-tilde \
+	check-relocatable \
+	check-variable-override \
+	check-variables \
+	$(NULL)
 
 EXTRA_DIST = \
 	$(TESTS) \
@@ -38,12 +41,13 @@ EXTRA_DIST = \
 	includedir.pc \
 	missing-requires-private.pc \
 	missing-requires.pc \
-	idirafter.pc \
+	special-flags.pc \
 	conflicts-test.pc \
 	whitespace.pc \
 	fields-blank.pc \
 	sub/sub1.pc \
 	sub/sub2.pc \
+	sub/broken.pc \
 	inst.pc \
 	inst-uninstalled.pc \
 	other.pc \
@@ -93,4 +97,9 @@ EXTRA_DIST = \
 	gtk/xcb.pc \
 	gtk/xproto.pc \
 	gtk/xrender.pc \
-	tilde.pc
+	tilde.pc \
+	pkgconfig/prefixdef.pc \
+	pkgconfig/prefixdef-expanded.pc \
+	pcfiledir.pc \
+	variables.pc \
+	$(NULL)

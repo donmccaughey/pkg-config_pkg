@@ -45,17 +45,17 @@ typedef enum
   ALWAYS_MATCH
 } ComparisonType;
 
-typedef struct _Flag Flag;
-typedef struct _Package Package;
-typedef struct _RequiredVersion RequiredVersion;
+typedef struct Flag_ Flag;
+typedef struct Package_ Package;
+typedef struct RequiredVersion_ RequiredVersion;
 
-struct _Flag
+struct Flag_
 {
   FlagType type;
   char *arg;
 };
 
-struct _RequiredVersion
+struct RequiredVersion_
 {
   char *name;
   ComparisonType comparison;
@@ -63,7 +63,7 @@ struct _RequiredVersion
   Package *owner;
 };
 
-struct _Package
+struct Package_
 {
   char *key;  /* filename name */
   char *name; /* human-readable name */
@@ -85,6 +85,7 @@ struct _Package
   int libs_num; /* Number of times the "Libs" header has been seen */
   int libs_private_num;  /* Number of times the "Libs.private" header has been seen */
   gboolean in_requires_chain; /* package is in current Requires chain */
+  char *orig_prefix; /* original prefix value before redefinition */
 };
 
 Package *get_package               (const char *name);
@@ -133,13 +134,16 @@ extern char *pcsysrootdir;
  */
 extern char *pkg_config_pc_path;
 
-#ifdef G_OS_WIN32
-/* If TRUE, do not automatically define "prefix"  while
- * parsing each .pc file */
-extern gboolean dont_define_prefix;
+/* Exit on parse errors if TRUE. */
+extern gboolean parse_strict;
+
+/* If TRUE, define "prefix" in .pc files at runtime. */
+extern gboolean define_prefix;
+
 /* The name of the variable that acts as prefix, unless it is "prefix" */
 extern char *prefix_variable;
 
+#ifdef G_OS_WIN32
 /* If TRUE, output flags in MSVC syntax. */
 extern gboolean msvc_syntax;
 #endif

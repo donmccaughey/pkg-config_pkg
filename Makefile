@@ -1,7 +1,7 @@
 TMP ?= $(abspath tmp)
 
-version := 0.28
-installer_version := 1
+version := 0.29.1
+installer_version := 2
 configure_flags := --with-internal-glib
 
 .SECONDEXPANSION :

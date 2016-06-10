@@ -34,16 +34,12 @@
 #endif
 #include <sys/types.h>
 
-#ifdef G_OS_WIN32
-gboolean dont_define_prefix = FALSE;
+gboolean parse_strict = TRUE;
+gboolean define_prefix = ENABLE_DEFINE_PREFIX;
 char *prefix_variable = "prefix";
-gboolean msvc_syntax = FALSE;
-#endif
 
 #ifdef G_OS_WIN32
-#ifndef G_IS_DIR_SEPARATOR
-#define G_IS_DIR_SEPARATOR(c) ((c) == G_DIR_SEPARATOR || (c) == '/')
-#endif
+gboolean msvc_syntax = FALSE;
 #endif
 
 /**
@@ -204,8 +200,8 @@ trim_and_sub (Package *pkg, const char *str, const char *path)
             {
               verbose_error ("Variable '%s' not defined in '%s'\n",
                              varname, path);
-              
-              exit (1);
+              if (parse_strict)
+                exit (1);
             }
 
           g_free (varname);
@@ -234,8 +230,10 @@ parse_name (Package *pkg, const char *str, const char *path)
   if (pkg->name)
     {
       verbose_error ("Name field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
   
   pkg->name = trim_and_sub (pkg, str, path);
@@ -247,8 +245,10 @@ parse_version (Package *pkg, const char *str, const char *path)
   if (pkg->version)
     {
       verbose_error ("Version field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
   
   pkg->version = trim_and_sub (pkg, str, path);
@@ -260,8 +260,10 @@ parse_description (Package *pkg, const char *str, const char *path)
   if (pkg->description)
     {
       verbose_error ("Description field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
   
   pkg->description = trim_and_sub (pkg, str, path);
@@ -413,9 +415,8 @@ parse_module_list (Package *pkg, const char *str, const char *path)
   GList *retval = NULL;
 
   split = split_module_list (str, path);
-  
-  iter = split;
-  while (iter != NULL)
+
+  for (iter = split; iter != NULL; iter = g_list_next (iter))
     {
       RequiredVersion *ver;
       char *p;
@@ -445,8 +446,10 @@ parse_module_list (Package *pkg, const char *str, const char *path)
       if (*start == '\0')
         {
           verbose_error ("Empty package name in Requires or Conflicts in file '%s'\n", path);
-          
-          exit (1);
+          if (parse_strict)
+            exit (1);
+          else
+            continue;
         }
       
       ver->name = g_strdup (start);
@@ -478,9 +481,13 @@ parse_module_list (Package *pkg, const char *str, const char *path)
             ver->comparison = NOT_EQUAL;
           else
             {
-              verbose_error ("Unknown version comparison operator '%s' after package name '%s' in file '%s'\n", start, ver->name, path);
-              
-              exit (1);
+              verbose_error ("Unknown version comparison operator '%s' after "
+                             "package name '%s' in file '%s'\n", start,
+                             ver->name, path);
+              if (parse_strict)
+                exit (1);
+              else
+                continue;
             }
         }
 
@@ -497,9 +504,15 @@ parse_module_list (Package *pkg, const char *str, const char *path)
       
       if (ver->comparison != ALWAYS_MATCH && *start == '\0')
         {
-          verbose_error ("Comparison operator but no version after package name '%s' in file '%s'\n", ver->name, path);
-          
-          exit (1);
+          verbose_error ("Comparison operator but no version after package "
+                         "name '%s' in file '%s'\n", ver->name, path);
+          if (parse_strict)
+            exit (1);
+          else
+            {
+              ver->version = g_strdup ("0");
+              continue;
+            }
         }
 
       if (*start != '\0')
@@ -508,8 +521,6 @@ parse_module_list (Package *pkg, const char *str, const char *path)
         }
 
       g_assert (ver->name);
-      
-      iter = g_list_next (iter);
     }
 
   g_list_foreach (split, (GFunc) g_free, NULL);
@@ -528,8 +539,10 @@ parse_requires (Package *pkg, const char *str, const char *path)
   if (pkg->requires)
     {
       verbose_error ("Requires field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
 
   trimmed = trim_and_sub (pkg, str, path);
@@ -545,8 +558,10 @@ parse_requires_private (Package *pkg, const char *str, const char *path)
   if (pkg->requires_private)
     {
       verbose_error ("Requires.private field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
 
   trimmed = trim_and_sub (pkg, str, path);
@@ -562,8 +577,10 @@ parse_conflicts (Package *pkg, const char *str, const char *path)
   if (pkg->conflicts)
     {
       verbose_error ("Conflicts field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
 
   trimmed = trim_and_sub (pkg, str, path);
@@ -645,10 +662,12 @@ static void _do_parse_libs (Package *pkg, int argc, char **argv)
             ++p;
 
           flag->type = LIBS_L;
-          flag->arg = g_strconcat (L_flag, p, lib_suffix, NULL);
+          flag->arg = g_strconcat (L_flag, p, NULL);
           pkg->libs = g_list_prepend (pkg->libs, flag);
 	}
-      else if (strcmp("-framework",p) == 0 && i+1 < argc)
+      else if ((strcmp("-framework", p) == 0 ||
+                strcmp("-Wl,-framework", p) == 0) &&
+               i+1 < argc)
         {
           /* Mac OS X has a -framework Foo which is really one option,
            * so we join those to avoid having -framework Foo
@@ -696,8 +715,10 @@ parse_libs (Package *pkg, const char *str, const char *path)
   if (pkg->libs_num > 0)
     {
       verbose_error ("Libs field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
   
   trimmed = trim_and_sub (pkg, str, path);
@@ -707,7 +728,13 @@ parse_libs (Package *pkg, const char *str, const char *path)
     {
       verbose_error ("Couldn't parse Libs field into an argument vector: %s\n",
                      error ? error->message : "unknown");
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        {
+          g_free (trimmed);
+          return;
+        }
     }
 
   _do_parse_libs(pkg, argc, argv);
@@ -740,8 +767,10 @@ parse_libs_private (Package *pkg, const char *str, const char *path)
   if (pkg->libs_private_num > 0)
     {
       verbose_error ("Libs.private field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
   
   trimmed = trim_and_sub (pkg, str, path);
@@ -751,7 +780,13 @@ parse_libs_private (Package *pkg, const char *str, const char *path)
     {
       verbose_error ("Couldn't parse Libs.private field into an argument vector: %s\n",
                      error ? error->message : "unknown");
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        {
+          g_free (trimmed);
+          return;
+        }
     }
 
   _do_parse_libs(pkg, argc, argv);
@@ -776,8 +811,10 @@ parse_cflags (Package *pkg, const char *str, const char *path)
   if (pkg->cflags)
     {
       verbose_error ("Cflags field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
   
   trimmed = trim_and_sub (pkg, str, path);
@@ -787,7 +824,13 @@ parse_cflags (Package *pkg, const char *str, const char *path)
     {
       verbose_error ("Couldn't parse Cflags field into an argument vector: %s\n",
                      error ? error->message : "unknown");
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        {
+          g_free (trimmed);
+          return;
+        }
     }
 
   i = 0;
@@ -810,17 +853,19 @@ parse_cflags (Package *pkg, const char *str, const char *path)
           flag->arg = g_strconcat ("-I", p, NULL);
           pkg->cflags = g_list_prepend (pkg->cflags, flag);
         }
-      else if (strcmp("-idirafter", arg) == 0 && i+1 < argc)
+      else if ((strcmp ("-idirafter", arg) == 0 ||
+                strcmp ("-isystem", arg) == 0) &&
+               i+1 < argc)
         {
-          char *dirafter, *tmp;
+          char *option, *tmp;
 
           tmp = trim_string (argv[i+1]);
-          dirafter = strdup_escape_shell (tmp);
+          option = strdup_escape_shell (tmp);
           flag->type = CFLAGS_OTHER;
-          flag->arg = g_strconcat (arg, " ", dirafter, NULL);
+          flag->arg = g_strconcat (arg, " ", option, NULL);
           pkg->cflags = g_list_prepend (pkg->cflags, flag);
           i++;
-          g_free (dirafter);
+          g_free (option);
           g_free (tmp);
         }
       else if (*arg != '\0')
@@ -848,30 +893,14 @@ parse_url (Package *pkg, const char *str, const char *path)
   if (pkg->url != NULL)
     {
       verbose_error ("URL field occurs twice in '%s'\n", path);
-
-      exit (1);
+      if (parse_strict)
+        exit (1);
+      else
+        return;
     }
 
   pkg->url = trim_and_sub (pkg, str, path);
 }
-
-#ifdef G_OS_WIN32
-static char *orig_prefix = NULL;
-
-static int
-pathnamecmp (const char *a,
-	     const char *b)
-{
-  while (*a && *b &&
-	 ((G_IS_DIR_SEPARATOR (*a) && G_IS_DIR_SEPARATOR (*b)) ||
-	  g_ascii_toupper (*a) == g_ascii_toupper (*b)))
-    {
-      a++;
-      b++;
-    }
-  return g_ascii_toupper (*a) - g_ascii_toupper (*b);
-}
-#endif
 
 static void
 parse_line (Package *pkg, const char *untrimmed, const char *path,
@@ -963,41 +992,31 @@ parse_line (Package *pkg, const char *untrimmed, const char *path,
       ++p;
       while (*p && isspace ((guchar)*p))
         ++p;
-      
-      if (pkg->vars == NULL)
-        pkg->vars = g_hash_table_new (g_str_hash, g_str_equal);
 
-#ifdef G_OS_WIN32
-      if (!dont_define_prefix && strcmp (tag, prefix_variable) == 0)
+      if (define_prefix && strcmp (tag, prefix_variable) == 0)
 	{
 	  /* This is the prefix variable. Try to guesstimate a value for it
 	   * for this package from the location of the .pc file.
 	   */
+          gchar *base;
+          gboolean is_pkgconfigdir;
 
-	  gchar *prefix = pkg->pcfiledir;
-	  const int prefix_len = strlen (prefix);
-	  const char *const lib_pkgconfig = "\\lib\\pkgconfig";
-	  const char *const share_pkgconfig = "\\share\\pkgconfig";
-	  const int lib_pkgconfig_len = strlen (lib_pkgconfig);
-	  const int share_pkgconfig_len = strlen (share_pkgconfig);
-
-	  if ((strlen (prefix) > lib_pkgconfig_len &&
-	       pathnamecmp (prefix + prefix_len - lib_pkgconfig_len, lib_pkgconfig) == 0) ||
-	      (strlen (prefix) > share_pkgconfig_len &&
-	       pathnamecmp (prefix + prefix_len - share_pkgconfig_len, share_pkgconfig) == 0))
-	    {
-	      /* It ends in lib\pkgconfig or share\pkgconfig. Good. */
+          base = g_path_get_basename (pkg->pcfiledir);
+          is_pkgconfigdir = g_ascii_strcasecmp (base, "pkgconfig") == 0;
+          g_free (base);
+          if (is_pkgconfigdir)
+            {
+              /* It ends in pkgconfig. Good. */
+              gchar *q;
+              gchar *prefix;
 	      
-	      gchar *q;
-	      
-	      orig_prefix = g_strdup (p);
+              /* Keep track of the original prefix value. */
+              pkg->orig_prefix = g_strdup (p);
 
-	      prefix = g_strdup (prefix);
-	      if (strlen (prefix) > lib_pkgconfig_len &&
-		  pathnamecmp (prefix + prefix_len - lib_pkgconfig_len, lib_pkgconfig) == 0)
-		prefix[prefix_len - lib_pkgconfig_len] = '\0';
-	      else
-		prefix[prefix_len - share_pkgconfig_len] = '\0';
+              /* Get grandparent directory for new prefix. */
+              q = g_path_get_dirname (pkg->pcfiledir);
+              prefix = g_path_get_dirname (q);
+              g_free (q);
 	      
 	      /* Turn backslashes into slashes or
 	       * g_shell_parse_argv() will eat them when ${prefix}
@@ -1025,24 +1044,26 @@ parse_line (Package *pkg, const char *untrimmed, const char *path,
 	      goto cleanup;
 	    }
 	}
-      else if (!dont_define_prefix &&
-	       orig_prefix != NULL &&
-	       strncmp (p, orig_prefix, strlen (orig_prefix)) == 0 &&
-	       G_IS_DIR_SEPARATOR (p[strlen (orig_prefix)]))
+      else if (define_prefix &&
+	       pkg->orig_prefix != NULL &&
+	       strncmp (p, pkg->orig_prefix, strlen (pkg->orig_prefix)) == 0 &&
+	       G_IS_DIR_SEPARATOR (p[strlen (pkg->orig_prefix)]))
 	{
 	  char *oldstr = str;
 
-	  p = str = g_strconcat (g_hash_table_lookup (pkg->vars, prefix_variable), p + strlen (orig_prefix), NULL);
+	  p = str = g_strconcat (g_hash_table_lookup (pkg->vars, prefix_variable),
+				 p + strlen (pkg->orig_prefix), NULL);
 	  g_free (oldstr);
 	}
-#endif
 
       if (g_hash_table_lookup (pkg->vars, tag))
         {
           verbose_error ("Duplicate definition of variable '%s' in '%s'\n",
                          tag, path);
-
-          exit (1);
+          if (parse_strict)
+            exit (1);
+          else
+            goto cleanup;
         }
 
       varname = g_strdup (tag);
@@ -1060,9 +1081,10 @@ parse_line (Package *pkg, const char *untrimmed, const char *path,
 }
 
 Package*
-parse_package_file (const char *path, gboolean ignore_requires,
-		    gboolean ignore_private_libs,
-		    gboolean ignore_requires_private)
+parse_package_file (const char *key, const char *path,
+                    gboolean ignore_requires,
+                    gboolean ignore_private_libs,
+                    gboolean ignore_requires_private)
 {
   FILE *f;
   Package *pkg;
@@ -1082,6 +1104,7 @@ parse_package_file (const char *path, gboolean ignore_requires,
   debug_spew ("Parsing package file '%s'\n", path);
   
   pkg = g_new0 (Package, 1);
+  pkg->key = g_strdup (key);
 
   if (path)
     {
@@ -1092,7 +1115,13 @@ parse_package_file (const char *path, gboolean ignore_requires,
       debug_spew ("No pcfiledir determined for package\n");
       pkg->pcfiledir = g_strdup ("???????");
     }
-  
+
+  if (pkg->vars == NULL)
+    pkg->vars = g_hash_table_new (g_str_hash, g_str_equal);
+
+  /* Variable storing directory of pc file */
+  g_hash_table_insert (pkg->vars, "pcfiledir", pkg->pcfiledir);
+
   str = g_string_new ("");
 
   while (read_one_line (f, str))
@@ -1115,4 +1144,40 @@ parse_package_file (const char *path, gboolean ignore_requires,
   pkg->libs = g_list_reverse (pkg->libs);
   
   return pkg;
+}
+
+/* Parse a package variable. When the value appears to be quoted,
+ * unquote it so it can be more easily used in a shell. Otherwise,
+ * return the raw value.
+ */
+char *
+parse_package_variable (Package *pkg, const char *variable)
+{
+  char *value;
+  char *unquoted;
+  GError *error = NULL;
+
+  value = package_get_var (pkg, variable);
+  if (!value)
+    return NULL;
+
+  if (*value != '"' && *value != '\'')
+    /* Not quoted, return raw value */
+    return value;
+
+  /* Maybe too naive, but assume a fully quoted variable */
+  unquoted = g_shell_unquote (value, &error);
+  if (unquoted)
+    {
+      g_free (value);
+      return unquoted;
+    }
+  else
+    {
+      /* Note the issue, but just return the raw value */
+      debug_spew ("Couldn't unquote value of \"%s\": %s\n",
+                  variable, error ? error->message : "unknown");
+      g_clear_error (&error);
+      return value;
+    }
 }
