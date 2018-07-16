@@ -1,6 +1,6 @@
 TMP ?= $(abspath tmp)
 
-version := 0.29.1
+version := 0.29.2
 installer_version := 3
 configure_flags := --with-internal-glib
 identity_name := Donald McCaughey
