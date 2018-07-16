@@ -1,9 +1,9 @@
-pkg-config 0.29.1 for macOS
+pkg-config 0.29.2 for macOS
 ===========================
 
 This project builds a standard OS X installer package for [pkg-config][1]
 a helper tool used when compiling applications and libraries. It contains the
-source distribution for pkg-config 0.29.1.
+source distribution for pkg-config 0.29.2.
 
 [1]: http://www.freedesktop.org/wiki/Software/pkg-config/ "pkg-config"
 
