@@ -44,3 +44,10 @@ for pkg in prefixdef prefixdef-expanded; do
     RESULT="-I/reloc/include -L/reloc/lib -lfoo"
     run_test --dont-define-prefix --cflags --libs $pkg
 done
+
+# Test prefix redefinition for .pc files with an empty prefix. In this
+# case, there should be no prefix adjustment to the other variables. The
+# result should be the same regardless of prefix redefinition.
+RESULT="-I/some/path/include -L/some/path/lib -lfoo"
+run_test --define-prefix --cflags --libs empty-prefix
+run_test --dont-define-prefix --cflags --libs empty-prefix

@@ -96,7 +96,7 @@ TESTS = check-cflags check-libs check-mixed-flags check-non-l-flags \
 	check-requires-version check-print-options check-path \
 	check-sysroot check-uninstalled check-debug check-gtk \
 	check-tilde check-relocatable check-variable-override \
-	check-variables
+	check-variables check-dependencies check-system-flags
 subdir = check
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/pkg.m4.in \
@@ -353,10 +353,24 @@ EXTRA_DIST = \
 	gtk/xproto.pc \
 	gtk/xrender.pc \
 	tilde.pc \
+	pkgconfig/empty-prefix.pc \
 	pkgconfig/prefixdef.pc \
 	pkgconfig/prefixdef-expanded.pc \
 	pcfiledir.pc \
 	variables.pc \
+	dependencies/a_dep_c.pc \
+	dependencies/b_dep_c.pc \
+	dependencies/c_dep.pc \
+	dependencies/d_dep_e_f.pc \
+	dependencies/d_dep_f_e.pc \
+	dependencies/e_dep_g_f.pc \
+	dependencies/f_dep_g.pc \
+	dependencies/g_dep.pc \
+	dependencies/h_dep_k_i_j.pc \
+	dependencies/i_dep_k_j.pc \
+	dependencies/j_dep_k.pc \
+	dependencies/k_dep.pc \
+	system.pc \
 	$(NULL)
 
 all: all-am

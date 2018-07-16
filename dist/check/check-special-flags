@@ -4,8 +4,8 @@ set -e
 
 . ${srcdir}/common
 
-RESULT="-isystem /system1 -idirafter /after1 -idirafter /after2 -isystem /system2 -I/foo -I/bar"
+RESULT="-g -ffoo -I/foo -isystem /system1 -idirafter /after1 -I/bar -idirafter /after2 -isystem /system2"
 run_test --cflags special-flags
 
-RESULT="-framework Foo -lsimple -framework Bar -Wl,-framework -Wl,Baz"
+RESULT="-L/foo -L/bar -framework Foo -lsimple -framework Bar -Wl,-framework -Wl,Baz"
 run_test --libs special-flags

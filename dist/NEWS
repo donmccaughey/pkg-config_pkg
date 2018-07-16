@@ -1,3 +1,25 @@
+pkg-config 0.29.2
+=================
+
+- Improved pkg-config's recursive package list expansion performance.
+  Thanks to Matthew Hanna for the fix.
+- Handle an empty prefix setting correctly when --define-prefix is used.
+  (#97453)
+- Lazily load pc files instead of reading all available pc files during
+  initialization. Thanks to Marco Diego Aurélio Mesquita for the fix.
+  (#98215)
+- Check the CPATH environment variable when determining system include
+  paths like GCC does. Document the system search path behavior. Thanks
+  to v4hn for the fix. (#99224)
+- Make PKG_CHECK_MODULES show the module list rather than the variable
+  prefix in configure output. Thanks to Russ Albery for the fix.
+  (#98334)
+- Fix bundled glib build with GCC 6. (#98334)
+- Handle -isystem and -idirafter when PKG_CONFIG_SYSROOT_DIR is set.
+  (#97337)
+- Check the INCLUDE environment variable when determining system include
+  paths on Windows builds when --msvc-syntax is used. (#94729)
+
 pkg-config 0.29.1
 =================
 

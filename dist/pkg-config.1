@@ -32,7 +32,7 @@ scenario in a Makefile:
 .PP
 .nf
 program: program.c
-	cc program.c $(pkg-config --cflags --libs gnomeui)
+	cc program.c `pkg-config --cflags --libs gnomeui`
 .fi
 .PP
 .I pkg-config
@@ -319,11 +319,47 @@ Normally if you request the package "foo" and the package
 uninstalled packages.  If this environment variable is set, it
 disables said behavior.
 .TP
+.I "PKG_CONFIG_SYSTEM_INCLUDE_PATH"
+A path variable containing system directories searched by the compiler.
+This is normally
+.IR /usr/include .
+.TP
+.I "CPATH"
+.TQ
+.I "C_INCLUDE_PATH"
+.TQ
+.I "CPLUS_INCLUDE_PATH"
+Additional paths to append to
+.IR "PKG_CONFIG_SYSTEM_INCLUDE_PATH" .
+These correspond to environment variables used by many compilers to
+affect the header search path. These are ignored on Windows builds when
+\-\-msvc-syntax is in use.
+.TP
+.I "INCLUDE"
+Additional paths to append to
+.IR "PKG_CONFIG_SYSTEM_INCLUDE_PATH"
+on Windows builds when \-\-msvc-syntax is in use. This corresponds to
+the environment variable used by MSVC to add directories to the include
+file search path.
+.TP
 .I "PKG_CONFIG_ALLOW_SYSTEM_CFLAGS"
-Don't strip -I/usr/include out of cflags.
+Don't strip system paths out of Cflags. See
+.I "PKG_CONFIG_SYSTEM_INCLUDE_PATH"
+for the definition of system paths.
+.TP
+.I "PKG_CONFIG_SYSTEM_LIBRARY_PATH"
+A path variable containing system directories searched by the linker.
+This is normally
+.I /usr/lib:/lib
+but is dependent on the
+.I pkg-config
+build and can contain other directories such as
+.IR /usr/lib64 .
 .TP
 .I "PKG_CONFIG_ALLOW_SYSTEM_LIBS"
-Don't strip -L/usr/lib or -L/lib out of libs.
+Don't strip system paths out of Libs. See
+.I "PKG_CONFIG_SYSTEM_LIBRARY_PATH"
+for the definition of system paths.
 .TP
 .I "PKG_CONFIG_SYSROOT_DIR"
 Modify -I and -L to use the directories located in target sysroot.
@@ -440,7 +476,15 @@ macro will be available.
 
 Defines the PKG_CONFIG variable to the best pkg-config available,
 useful if you need pkg-config but don't want to use PKG_CHECK_MODULES.
-.\"
+
+If the first call to PKG_PROG_PKG_CONFIG is conditional, then it will
+not work correctly in all cases. Since many of the other macros such as
+PKG_CHECK_MODULES require PKG_PROG_PKG_CONFIG to know which pkg-config
+program to run, PKG_PROG_PKG_CONFIG may be run for the first time from a
+conditional from one of these macros. Therefore, if any of the
+pkg-config macros will be used under a conditional, it's best to run
+PKG_PROG_PKG_CONFIG before any of the other macros are used.
+
 .TP
 .I "PKG_CHECK_MODULES_STATIC(VARIABLE-PREFIX, MODULES [,ACTION-IF-FOUND [,ACTION-IF-NOT-FOUND]])"
 Enables static linking through --static prior to calling
@@ -451,9 +495,10 @@ PKG_CHECK_MODULES.
 Check to see whether a particular set of modules exists.  Similar
 to PKG_CHECK_MODULES(), but does not set variables or print errors.
 
-Similar to PKG_CHECK_MODULES, make sure that the first instance of
-this or PKG_CHECK_MODULES is called, or make sure to call
-PKG_CHECK_EXISTS manually.
+Similar to PKG_CHECK_MODULES, make sure that the first instance of this
+or PKG_CHECK_MODULES is called, or make sure to call PKG_PROG_PKGCONFIG
+manually.
+
 .TP
 .I "PKG_INSTALLDIR(DIRECTORY)"
 

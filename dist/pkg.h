@@ -84,7 +84,6 @@ struct Package_
   int path_position; /* used to order packages by position in path of their .pc file, lower number means earlier in path */
   int libs_num; /* Number of times the "Libs" header has been seen */
   int libs_private_num;  /* Number of times the "Libs.private" header has been seen */
-  gboolean in_requires_chain; /* package is in current Requires chain */
   char *orig_prefix; /* original prefix value before redefinition */
 };
 
@@ -99,7 +98,7 @@ char *   packages_get_var          (GList      *pkgs,
 
 void add_search_dir (const char *path);
 void add_search_dirs (const char *path, const char *separator);
-void package_init (void);
+void package_init (gboolean want_list);
 int compare_versions (const char * a, const char *b);
 gboolean version_test (ComparisonType comparison,
                        const char *a,

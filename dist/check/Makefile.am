@@ -29,6 +29,8 @@ TESTS = \
 	check-relocatable \
 	check-variable-override \
 	check-variables \
+	check-dependencies \
+	check-system-flags \
 	$(NULL)
 
 EXTRA_DIST = \
@@ -98,8 +100,22 @@ EXTRA_DIST = \
 	gtk/xproto.pc \
 	gtk/xrender.pc \
 	tilde.pc \
+	pkgconfig/empty-prefix.pc \
 	pkgconfig/prefixdef.pc \
 	pkgconfig/prefixdef-expanded.pc \
 	pcfiledir.pc \
 	variables.pc \
+	dependencies/a_dep_c.pc \
+	dependencies/b_dep_c.pc \
+	dependencies/c_dep.pc \
+	dependencies/d_dep_e_f.pc \
+	dependencies/d_dep_f_e.pc \
+	dependencies/e_dep_g_f.pc \
+	dependencies/f_dep_g.pc \
+	dependencies/g_dep.pc \
+	dependencies/h_dep_k_i_j.pc \
+	dependencies/i_dep_k_j.pc \
+	dependencies/j_dep_k.pc \
+	dependencies/k_dep.pc \
+	system.pc \
 	$(NULL)

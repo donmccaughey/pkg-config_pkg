@@ -861,7 +861,9 @@ parse_cflags (Package *pkg, const char *str, const char *path)
 
           tmp = trim_string (argv[i+1]);
           option = strdup_escape_shell (tmp);
-          flag->type = CFLAGS_OTHER;
+
+          /* These are -I flags since they control the search path */
+          flag->type = CFLAGS_I;
           flag->arg = g_strconcat (arg, " ", option, NULL);
           pkg->cflags = g_list_prepend (pkg->cflags, flag);
           i++;
@@ -1046,6 +1048,7 @@ parse_line (Package *pkg, const char *untrimmed, const char *path,
 	}
       else if (define_prefix &&
 	       pkg->orig_prefix != NULL &&
+	       *(pkg->orig_prefix) != '\0' &&
 	       strncmp (p, pkg->orig_prefix, strlen (pkg->orig_prefix)) == 0 &&
 	       G_IS_DIR_SEPARATOR (p[strlen (pkg->orig_prefix)]))
 	{

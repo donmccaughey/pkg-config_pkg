@@ -643,7 +643,7 @@ main (int argc, char **argv)
         return 1;
     }
 
-  package_init ();
+  package_init (want_list);
 
   if (want_list)
     {

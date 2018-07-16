@@ -43,11 +43,8 @@
 static void verify_package (Package *pkg);
 
 static GHashTable *packages = NULL;
-static GHashTable *locations = NULL;
-static GHashTable *path_positions = NULL;
 static GHashTable *globals = NULL;
 static GList *search_dirs = NULL;
-static int scanned_dir_count = 0;
 
 gboolean disable_uninstalled = FALSE;
 gboolean ignore_requires = FALSE;
@@ -121,6 +118,8 @@ name_ends_in_uninstalled (const char *str)
     return FALSE;
 }
 
+static Package *
+internal_get_package (const char *name, gboolean warn);
 
 /* Look for .pc files in the given directory and add them into
  * locations, ignoring duplicates
@@ -129,7 +128,7 @@ static void
 scan_dir (char *dirname)
 {
   GDir *dir;
-  const gchar *d_name;
+  const gchar *filename;
 
   int dirnamelen = strlen (dirname);
   /* Use a copy of dirname cause Win32 opendir doesn't like
@@ -161,59 +160,20 @@ scan_dir (char *dirname)
   dir = g_dir_open (dirname_copy, 0 , NULL);
   g_free (dirname_copy);
 
-  scanned_dir_count += 1;
-
   if (!dir)
     {
-      debug_spew ("Cannot open directory #%i '%s' in package search path: %s\n",
-                  scanned_dir_count, dirname, g_strerror (errno));
+      debug_spew ("Cannot open directory '%s' in package search path: %s\n",
+                  dirname, g_strerror (errno));
       return;
     }
 
-  debug_spew ("Scanning directory #%i '%s'\n", scanned_dir_count, dirname);
-  
-  while ((d_name = g_dir_read_name(dir)))
+  debug_spew ("Scanning directory '%s'\n", dirname);
+
+  while ((filename = g_dir_read_name(dir)))
     {
-      int len = strlen (d_name);
-
-      if (ends_in_dotpc (d_name))
-        {
-          char *pkgname = g_malloc (len - EXT_LEN + 1);
-
-          debug_spew ("File '%s' appears to be a .pc file\n", d_name);
-          
-          strncpy (pkgname, d_name, len - EXT_LEN);
-          pkgname[len-EXT_LEN] = '\0';
-
-          if (g_hash_table_lookup (locations, pkgname))
-            {
-              debug_spew ("File '%s' ignored, we already know about package '%s'\n", d_name, pkgname);
-              g_free (pkgname);
-            }
-          else
-            {
-              char *filename = g_malloc (dirnamelen + 1 + len + 1);
-              strncpy (filename, dirname, dirnamelen);
-              filename[dirnamelen] = G_DIR_SEPARATOR;
-              strcpy (filename + dirnamelen + 1, d_name);
-              
-	      if (g_file_test(filename, G_FILE_TEST_IS_REGULAR) == TRUE) {
-		  g_hash_table_insert (locations, pkgname, filename);
-		  g_hash_table_insert (path_positions, pkgname,
-				       GINT_TO_POINTER (scanned_dir_count));
-		  debug_spew ("Will find package '%s' in file '%s'\n",
-			      pkgname, filename);
-	      } else {
-		  debug_spew ("Ignoring '%s' while looking for '%s'; not a "
-			      "regular file.\n", pkgname, filename);
-	      }
-	    }
-        }
-      else
-        {
-          debug_spew ("Ignoring file '%s' in search directory; not a .pc file\n",
-                      d_name);
-        }
+      char *path = g_build_filename (dirname, filename, NULL);
+      internal_get_package (path, FALSE);
+      g_free (path);
     }
   g_dir_close (dir);
 }
@@ -243,31 +203,31 @@ add_virtual_pkgconfig_package (void)
 }
 
 void
-package_init ()
+package_init (gboolean want_list)
 {
-  static gboolean initted = FALSE;
-
-  if (!initted)
-    {
-      initted = TRUE;
+  if (packages)
+    return;
       
-      packages = g_hash_table_new (g_str_hash, g_str_equal);
-      locations = g_hash_table_new (g_str_hash, g_str_equal);
-      path_positions = g_hash_table_new (g_str_hash, g_str_equal);
-      
-      add_virtual_pkgconfig_package ();
+  packages = g_hash_table_new (g_str_hash, g_str_equal);
 
-      g_list_foreach (search_dirs, (GFunc)scan_dir, NULL);
-    }
+  if (want_list)
+    g_list_foreach (search_dirs, (GFunc)scan_dir, NULL);
+  else
+    /* Should not add virtual pkgconfig package when listing to be
+     * compatible with old code that only listed packages from real
+     * files */
+    add_virtual_pkgconfig_package ();
 }
 
 static Package *
 internal_get_package (const char *name, gboolean warn)
 {
   Package *pkg = NULL;
-  char *key;
-  const char *location;
+  char *key = NULL;
+  char *location = NULL;
+  unsigned int path_position = 0;
   GList *iter;
+  GList *dir_iter;
   
   pkg = g_hash_table_lookup (packages, name);
 
@@ -280,7 +240,8 @@ internal_get_package (const char *name, gboolean warn)
   if ( ends_in_dotpc (name) )
     {
       debug_spew ("Considering '%s' to be a filename rather than a package name\n", name);
-      location = name;
+      location = g_strdup (name);
+      key = g_strdup (name);
     }
   else
     {
@@ -303,7 +264,18 @@ internal_get_package (const char *name, gboolean warn)
             }
         }
       
-      location = g_hash_table_lookup (locations, name);
+      for (dir_iter = search_dirs; dir_iter != NULL;
+           dir_iter = g_list_next (dir_iter))
+        {
+          path_position++;
+          location = g_strdup_printf ("%s%c%s.pc", (char*)dir_iter->data,
+                                      G_DIR_SEPARATOR, name);
+          if (g_file_test (location, G_FILE_TEST_IS_REGULAR))
+            break;
+          g_free (location);
+          location = NULL;
+        }
+
     }
   
   if (location == NULL)
@@ -317,21 +289,13 @@ internal_get_package (const char *name, gboolean warn)
       return NULL;
     }
 
-  if (location != name)
+  if (key == NULL)
     key = g_strdup (name);
   else
     {
       /* need to strip package name out of the filename */
-      int len = strlen (name);
-      const char *end = name + (len - EXT_LEN);
-      const char *start = end;
-
-      while (start != name && *start != G_DIR_SEPARATOR)
-        --start;
-
-      g_assert (end >= start);
-
-      key = g_strndup (start, end - start);
+      key = g_path_get_basename (name);
+      key[strlen (key) - EXT_LEN] = '\0';
     }
 
   debug_spew ("Reading '%s' from file '%s'\n", name, location);
@@ -339,17 +303,18 @@ internal_get_package (const char *name, gboolean warn)
                             ignore_private_libs, ignore_requires_private);
   g_free (key);
 
+  if (pkg != NULL && strstr (location, "uninstalled.pc"))
+    pkg->uninstalled = TRUE;
+
+  g_free (location);
+
   if (pkg == NULL)
     {
       debug_spew ("Failed to parse '%s'\n", location);
       return NULL;
     }
 
-  if (strstr (location, "uninstalled.pc"))
-    pkg->uninstalled = TRUE;
-
-  pkg->path_position =
-    GPOINTER_TO_INT (g_hash_table_lookup (path_positions, pkg->key));
+  pkg->path_position = path_position;
 
   debug_spew ("Path position of '%s' is %d\n",
               pkg->key, pkg->path_position);
@@ -469,10 +434,21 @@ flag_list_to_string (GList *list)
     char *tmpstr = flag->arg;
 
     if (pcsysrootdir != NULL && flag->type & (CFLAGS_I | LIBS_L)) {
-      g_string_append_c (str, '-');
-      g_string_append_c (str, tmpstr[1]);
-      g_string_append (str, pcsysrootdir);
-      g_string_append (str, tmpstr+2);
+      /* Handle non-I Cflags like -isystem */
+      if (flag->type & CFLAGS_I && strncmp (tmpstr, "-I", 2) != 0) {
+        char *space = strchr (tmpstr, ' ');
+
+        /* Ensure this has a separate arg */
+        g_assert (space != NULL && space[1] != '\0');
+        g_string_append_len (str, tmpstr, space - tmpstr + 1);
+        g_string_append (str, pcsysrootdir);
+        g_string_append (str, space + 1);
+      } else {
+        g_string_append_c (str, '-');
+        g_string_append_c (str, tmpstr[1]);
+        g_string_append (str, pcsysrootdir);
+        g_string_append (str, tmpstr+2);
+      }
     } else {
       g_string_append (str, tmpstr);
     }
@@ -525,35 +501,44 @@ packages_sort_by_path_position (GList *list)
   return g_list_sort (list, pathposcmp);
 }
 
+/* Construct a topological sort of all required packages.
+ *
+ * This is a depth first search starting from the right.  The output 'listp' is
+ * in reverse order, with the first node reached in the depth first search at
+ * the end of the list.  Previously visited nodes are skipped.  The result is
+ * a list of packages such that each packages is listed once and comes before
+ * any package that it depends on.
+ */
 static void
-recursive_fill_list (Package *pkg, gboolean include_private, GList **listp)
+recursive_fill_list (Package *pkg, gboolean include_private,
+                     GHashTable *visited, GList **listp)
 {
   GList *tmp;
 
   /*
-   * If the package is one of the parents, we can skip it. This allows
-   * circular requires loops to be broken.
+   * If the package has already been visited, then it is already in 'listp' and
+   * we can skip it. Additionally, this allows circular requires loops to be
+   * broken.
    */
-  if (pkg->in_requires_chain)
+  if (g_hash_table_lookup_extended (visited, pkg->key, NULL, NULL))
     {
       debug_spew ("Package %s already in requires chain, skipping\n",
                   pkg->key);
       return;
     }
-
   /* record this package in the dependency chain */
-  pkg->in_requires_chain = TRUE;
+  else
+    {
+      g_hash_table_replace (visited, pkg->key, pkg->key);
+    }
 
   /* Start from the end of the required package list to maintain order since
    * the recursive list is built by prepending. */
   tmp = include_private ? pkg->requires_private : pkg->requires;
   for (tmp = g_list_last (tmp); tmp != NULL; tmp = g_list_previous (tmp))
-    recursive_fill_list (tmp->data, include_private, listp);
+    recursive_fill_list (tmp->data, include_private, visited, listp);
 
   *listp = g_list_prepend (*listp, pkg);
-
-  /* remove this package from the dependency chain now that we've unwound */
-  pkg->in_requires_chain = FALSE;
 }
 
 /* merge the flags from the individual packages */
@@ -590,43 +575,6 @@ merge_flag_lists (GList *packages, FlagType type)
   return merged;
 }
 
-/* Work backwards from the end of the package list to remove duplicate
- * packages. This could happen because the package was specified multiple
- * times on the command line, or because multiple packages require the same
- * package. When we have duplicate dependencies, starting from the end of the
- * list ensures that the dependency shows up later in the package list and
- * Libs will come out correctly. */
-static GList *
-package_list_strip_duplicates (GList *packages)
-{
-  GList *cur;
-  GHashTable *requires;
-
-  requires = g_hash_table_new (g_str_hash, g_str_equal);
-  for (cur = g_list_last (packages); cur != NULL; cur = g_list_previous (cur))
-    {
-      Package *pkg = cur->data;
-
-      if (g_hash_table_lookup_extended (requires, pkg->key, NULL, NULL))
-        {
-          GList *dup = cur;
-
-          /* Remove the duplicate package from the list */
-          debug_spew ("Removing duplicate package %s\n", pkg->key);
-          cur = cur->next;
-          packages = g_list_delete_link (packages, dup);
-        }
-      else
-        {
-          /* Unique package. Track it and move to the next. */
-          g_hash_table_replace (requires, pkg->key, pkg->key);
-        }
-    }
-  g_hash_table_destroy (requires);
-
-  return packages;
-}
-
 static GList *
 fill_list (GList *packages, FlagType type,
            gboolean in_path_order, gboolean include_private)
@@ -634,18 +582,15 @@ fill_list (GList *packages, FlagType type,
   GList *tmp;
   GList *expanded = NULL;
   GList *flags;
+  GHashTable *visited;
 
   /* Start from the end of the requested package list to maintain order since
    * the recursive list is built by prepending. */
+  visited = g_hash_table_new (g_str_hash, g_str_equal);
   for (tmp = g_list_last (packages); tmp != NULL; tmp = g_list_previous (tmp))
-    recursive_fill_list (tmp->data, include_private, &expanded);
-
-  /* Remove duplicate packages from the recursive list. This should provide a
-   * serialized package list where all interdependencies are resolved
-   * consistently. */
-  spew_package_list (" pre-remove", expanded);
-  expanded = package_list_strip_duplicates (expanded);
-  spew_package_list ("post-remove", expanded);
+    recursive_fill_list (tmp->data, include_private, visited, &expanded);
+  g_hash_table_destroy (visited);
+  spew_package_list ("post-recurse", expanded);
 
   if (in_path_order)
     {
@@ -676,6 +621,25 @@ add_env_variable_to_list (GList *list, const gchar *env)
   return list;
 }
 
+/* Well known compiler include path environment variables. These are
+ * used to find additional system include paths to remove. See
+ * https://gcc.gnu.org/onlinedocs/gcc/Environment-Variables.html. */
+static const gchar *gcc_include_envvars[] = {
+  "CPATH",
+  "C_INCLUDE_PATH",
+  "CPP_INCLUDE_PATH",
+  NULL
+};
+
+#ifdef G_OS_WIN32
+/* MSVC include path environment variables. See
+ * https://msdn.microsoft.com/en-us/library/73f9s62w.aspx. */
+static const gchar *msvc_include_envvars[] = {
+  "INCLUDE",
+  NULL
+};
+#endif
+
 static void
 verify_package (Package *pkg)
 {
@@ -686,8 +650,11 @@ verify_package (Package *pkg)
   GList *requires_iter;
   GList *conflicts_iter;
   GList *system_dir_iter = NULL;
+  GHashTable *visited;
   int count;
   const gchar *search_path;
+  const gchar **include_envvars;
+  const gchar **var;
 
   /* Be sure we have the required fields */
 
@@ -756,7 +723,9 @@ verify_package (Package *pkg)
   /* Make sure we didn't drag in any conflicts via Requires
    * (inefficient algorithm, who cares)
    */
-  recursive_fill_list (pkg, TRUE, &requires);
+  visited = g_hash_table_new (g_str_hash, g_str_equal);
+  recursive_fill_list (pkg, TRUE, visited, &requires);
+  g_hash_table_destroy (visited);
   conflicts = pkg->conflicts;
 
   requires_iter = requires;
@@ -795,8 +764,8 @@ verify_package (Package *pkg)
   
   g_list_free (requires);
 
-  /* We make a list of system directories that gcc expects so we can remove
-   * them.
+  /* We make a list of system directories that compilers expect so we
+   * can remove them.
    */
 
   search_path = g_getenv ("PKG_CONFIG_SYSTEM_INCLUDE_PATH");
@@ -808,16 +777,16 @@ verify_package (Package *pkg)
 
   system_directories = add_env_variable_to_list (system_directories, search_path);
 
-  search_path = g_getenv ("C_INCLUDE_PATH");
-  if (search_path != NULL)
+#ifdef G_OS_WIN32
+  include_envvars = msvc_syntax ? msvc_include_envvars : gcc_include_envvars;
+#else
+  include_envvars = gcc_include_envvars;
+#endif
+  for (var = include_envvars; *var != NULL; var++)
     {
-      system_directories = add_env_variable_to_list (system_directories, search_path);
-    }
-
-  search_path = g_getenv ("CPLUS_INCLUDE_PATH");
-  if (search_path != NULL)
-    {
-      system_directories = add_env_variable_to_list (system_directories, search_path);
+      search_path = g_getenv (*var);
+      if (search_path != NULL)
+        system_directories = add_env_variable_to_list (system_directories, search_path);
     }
 
   count = 0;
@@ -829,8 +798,12 @@ verify_package (Package *pkg)
       if (!(flag->type & CFLAGS_I))
         continue;
 
-      /* we put things in canonical -I/usr/include (vs. -I /usr/include) format,
-       * but if someone changes it later we may as well be robust
+      /* Handle the system cflags. We put things in canonical
+       * -I/usr/include (vs. -I /usr/include) format, but if someone
+       * changes it later we may as well be robust.
+       *
+       * Note that the -i* flags are left out of this handling since
+       * they're intended to adjust the system cflags behavior.
        */
       if (((strncmp (flag->arg, "-I", 2) == 0) && (offset = 2))||
           ((strncmp (flag->arg, "-I ", 3) == 0) && (offset = 3)))
@@ -1198,19 +1171,15 @@ max_len_foreach (gpointer key, gpointer value, gpointer data)
 static void
 packages_foreach (gpointer key, gpointer value, gpointer data)
 {
-  Package *pkg = get_package (key);
+  Package *pkg = value;
+  char *pad;
 
-  if (pkg != NULL)
-    {
-      char *pad;
-
-      pad = g_strnfill (GPOINTER_TO_INT (data) - strlen (pkg->key), ' ');
+  pad = g_strnfill (GPOINTER_TO_INT (data) - strlen (pkg->key), ' ');
       
-      printf ("%s%s%s - %s\n",
-              pkg->key, pad, pkg->name, pkg->description);
+  printf ("%s%s%s - %s\n",
+          pkg->key, pad, pkg->name, pkg->description);
 
-      g_free (pad);
-    }
+  g_free (pad);
 }
 
 void
@@ -1221,8 +1190,8 @@ print_package_list (void)
   ignore_requires = TRUE;
   ignore_requires_private = TRUE;
 
-  g_hash_table_foreach (locations, max_len_foreach, &mlen);
-  g_hash_table_foreach (locations, packages_foreach, GINT_TO_POINTER (mlen + 1));
+  g_hash_table_foreach (packages, max_len_foreach, &mlen);
+  g_hash_table_foreach (packages, packages_foreach, GINT_TO_POINTER (mlen + 1));
 }
 
 void
