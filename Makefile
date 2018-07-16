@@ -1,7 +1,7 @@
 TMP ?= $(abspath tmp)
 
 version := 0.29.2
-installer_version := 3
+revision := 1
 configure_flags := --with-internal-glib
 identity_name := Donald McCaughey
 
@@ -13,7 +13,7 @@ all : pkg-config-$(version).pkg
 
 .PHONY : clean
 clean :
-	-rm -f pkg-config-$(version).pkg
+	-rm -f pkg-config-*.pkg
 	-rm -rf $(TMP)
 
 
@@ -65,7 +65,7 @@ pkg-config-$(version).pkg : \
         --distribution $(TMP)/distribution.xml \
         --resources $(TMP)/resources \
         --package-path $(TMP) \
-        --version $(installer_version) \
+        --version $(version)-r$(revision) \
         --sign '$(identity_name)' \
         $@
 
