@@ -1,8 +1,9 @@
 TMP ?= $(abspath tmp)
 
 version := 0.29.1
-installer_version := 2
+installer_version := 3
 configure_flags := --with-internal-glib
+identity_name := Donald McCaughey
 
 .SECONDEXPANSION :
 
@@ -40,7 +41,7 @@ $(TMP)/pkg-config-$(version).pkg : \
         $(TMP)/install/etc/paths.d/pkg-config.path
 	pkgbuild \
         --root $(TMP)/install \
-        --identifier com.ablepear.pkg-config \
+        --identifier cc.donm.pkg.pkg-config \
         --ownership recommended \
         --version $(version) \
         $@
@@ -65,7 +66,7 @@ pkg-config-$(version).pkg : \
         --resources $(TMP)/resources \
         --package-path $(TMP) \
         --version $(installer_version) \
-        --sign 'Able Pear Software Incorporated' \
+        --sign '$(identity_name)' \
         $@
 
 $(TMP)/distribution.xml \

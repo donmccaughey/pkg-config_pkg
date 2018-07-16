@@ -9,12 +9,12 @@
     <options customize="never"/>
 
     <choices-outline>
-        <line choice="com.ablepear.pkg-config"/>
+        <line choice="cc.donm.pkg.pkg-config"/>
     </choices-outline>
 
-    <choice id="com.ablepear.pkg-config">
-        <pkg-ref id="com.ablepear.pkg-config"/>
+    <choice id="cc.donm.pkg.pkg-config">
+        <pkg-ref id="cc.donm.pkg.pkg-config"/>
     </choice>
-    <pkg-ref id="com.ablepear.pkg-config">pkg-config-{{version}}.pkg</pkg-ref>
+    <pkg-ref id="cc.donm.pkg.pkg-config">pkg-config-{{version}}.pkg</pkg-ref>
 
 </installer-gui-script>
