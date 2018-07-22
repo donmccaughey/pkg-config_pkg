@@ -5,18 +5,6 @@ revision := 1
 configure_flags := --with-internal-glib
 identity_name := Donald McCaughey
 
-date := $(shell date '+%Y-%m-%d')
-macos:=$(shell \
-	system_profiler -detailLevel mini SPSoftwareDataType \
-	| grep 'System Version:' \
-	| awk -F ' ' '{print $$4}' \
-	)
-xcode:=$(shell \
-	system_profiler -detailLevel mini SPDeveloperToolsDataType \
-	| grep 'Version:' \
-	| awk -F ' ' '{print $$2}' \
-	)
-
 
 .SECONDEXPANSION :
 
@@ -52,8 +40,9 @@ $(TMP)/install :
 ##### pkg ##########
 
 $(TMP)/pkg-config-$(version).pkg : \
+        $(TMP)/install/etc/paths.d/pkg-config.path \
         $(TMP)/install/usr/local/bin/pkg-config \
-        $(TMP)/install/etc/paths.d/pkg-config.path
+		$(TMP)/install/usr/local/bin/uninstall-pkg-config
 	pkgbuild \
         --root $(TMP)/install \
         --identifier cc.donm.pkg.pkg-config \
@@ -64,11 +53,33 @@ $(TMP)/pkg-config-$(version).pkg : \
 $(TMP)/install/etc/paths.d/pkg-config.path : pkg-config.path | $$(dir $$@)
 	cp $< $@
 
-$(TMP)/install/etc/paths.d :
+$(TMP)/install/usr/local/bin/uninstall-pkg-config : \
+		uninstall-pkg-config \
+		$(TMP)/install/usr/local/bin/pkg-config \
+		| $$(dir $$@)
+	cp $< $@
+	cd $(TMP)/install && find . -type f \! -name .DS_STORE | sort >> $@
+	sed -e 's/^\./rm -f /g' -i '' $@
+	chmod a+x $@
+
+$(TMP)/install/etc/paths.d \
+$(TMP)/install/usr/local/bin :
 	mkdir -p $@
 
 
 ##### product ##########
+
+date := $(shell date '+%Y-%m-%d')
+macos:=$(shell \
+	system_profiler -detailLevel mini SPSoftwareDataType \
+	| grep 'System Version:' \
+	| awk -F ' ' '{print $$4}' \
+	)
+xcode:=$(shell \
+	system_profiler -detailLevel mini SPDeveloperToolsDataType \
+	| grep 'Version:' \
+	| awk -F ' ' '{print $$2}' \
+	)
 
 pkg-config-$(version).pkg : \
         $(TMP)/pkg-config-$(version).pkg \
