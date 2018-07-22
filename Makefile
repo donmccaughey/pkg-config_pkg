@@ -5,7 +5,21 @@ revision := 1
 configure_flags := --with-internal-glib
 identity_name := Donald McCaughey
 
+date := $(shell date '+%Y-%m-%d')
+macos:=$(shell \
+	system_profiler -detailLevel mini SPSoftwareDataType \
+	| grep 'System Version:' \
+	| awk -F ' ' '{print $$4}' \
+	)
+xcode:=$(shell \
+	system_profiler -detailLevel mini SPDeveloperToolsDataType \
+	| grep 'Version:' \
+	| awk -F ' ' '{print $$2}' \
+	)
+
+
 .SECONDEXPANSION :
+
 
 .PHONY : all
 all : pkg-config-$(version).pkg
@@ -18,6 +32,7 @@ clean :
 
 
 ##### dist ##########
+
 dist_sources := $(shell find dist -type f \! -name .DS_Store)
 
 $(TMP)/install/usr/local/bin/pkg-config : $(TMP)/build/pkg-config | $(TMP)/install
@@ -26,7 +41,7 @@ $(TMP)/install/usr/local/bin/pkg-config : $(TMP)/build/pkg-config | $(TMP)/insta
 $(TMP)/build/pkg-config : $(TMP)/build/config.status $(dist_sources)
 	cd $(TMP)/build && $(MAKE)
 
-$(TMP)/build/config.status : dist/configure | $(TMP)/build
+$(TMP)/build/config.status : dist/configure | $$(dir $$@)
 	cd $(TMP)/build && sh $(abspath $<) $(configure_flags)
 
 $(TMP)/build \
@@ -46,7 +61,7 @@ $(TMP)/pkg-config-$(version).pkg : \
         --version $(version) \
         $@
 
-$(TMP)/install/etc/paths.d/pkg-config.path : pkg-config.path | $(TMP)/install/etc/paths.d
+$(TMP)/install/etc/paths.d/pkg-config.path : pkg-config.path | $$(dir $$@)
 	cp $< $@
 
 $(TMP)/install/etc/paths.d :
@@ -72,12 +87,15 @@ pkg-config-$(version).pkg : \
 $(TMP)/distribution.xml \
 $(TMP)/resources/welcome.html : $(TMP)/% : % | $$(dir $$@)
 	sed \
-		-e s/{{version}}/$(version)/g \
+		-e s/{{date}}/$(date)/g \
+		-e s/{{macos}}/$(macos)/g \
 		-e s/{{revision}}/$(revision)/g \
+		-e s/{{version}}/$(version)/g \
+		-e s/{{xcode}}/$(xcode)/g \
 		$< > $@
 
 $(TMP)/resources/background.png \
-$(TMP)/resources/license.html : $(TMP)/% : % | $(TMP)/resources
+$(TMP)/resources/license.html : $(TMP)/% : % | $$(dir $$@)
 	cp $< $@
 
 $(TMP) \
