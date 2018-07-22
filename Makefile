@@ -2,8 +2,6 @@ TMP ?= $(abspath tmp)
 
 version := 0.29.2
 revision := 1
-configure_flags := --with-internal-glib
-identity_name := Donald McCaughey
 
 
 .SECONDEXPANSION :
@@ -30,7 +28,7 @@ $(TMP)/build/pkg-config : $(TMP)/build/config.status $(dist_sources)
 	cd $(TMP)/build && $(MAKE)
 
 $(TMP)/build/config.status : dist/configure | $$(dir $$@)
-	cd $(TMP)/build && sh $(abspath $<) $(configure_flags)
+	cd $(TMP)/build && sh $(abspath $<) --with-internal-glib 
 
 $(TMP)/build \
 $(TMP)/install :
@@ -39,7 +37,7 @@ $(TMP)/install :
 
 ##### pkg ##########
 
-$(TMP)/pkg-config-$(version).pkg : \
+$(TMP)/pkg-config.pkg : \
         $(TMP)/install/etc/paths.d/pkg-config.path \
         $(TMP)/install/usr/local/bin/pkg-config \
 		$(TMP)/install/usr/local/bin/uninstall-pkg-config
@@ -82,7 +80,8 @@ xcode:=$(shell \
 	)
 
 pkg-config-$(version).pkg : \
-        $(TMP)/pkg-config-$(version).pkg \
+        $(TMP)/pkg-config.pkg \
+		$(TMP)/build-report.txt \
         $(TMP)/distribution.xml \
         $(TMP)/resources/background.png \
         $(TMP)/resources/license.html \
@@ -91,9 +90,19 @@ pkg-config-$(version).pkg : \
         --distribution $(TMP)/distribution.xml \
         --resources $(TMP)/resources \
         --package-path $(TMP) \
-        --version $(version)-r$(revision) \
-        --sign '$(identity_name)' \
+        --version v$(version)-r$(revision) \
+        --sign 'Donald McCaughey' \
         $@
+
+$(TMP)/build-report.txt : | $$(dir $$@)
+	printf 'Build Date: %s\n' "$(date)" > $@
+	printf 'Software Version: %s\n' "$(version)" >> $@
+	printf 'Installer Revision: %s\n' "$(revision)" >> $@
+	printf 'macOS Version: %s\n' "$(macos)" >> $@
+	printf 'Xcode Version: %s\n' "$(xcode)" >> $@
+	printf 'Tag Version: v%s-r%s\n' "$(version)" "$(revision)" >> $@
+	printf 'Release Title: pkg-config %s for macOS rev %s\n' "$(version)" "$(revision)" >> $@
+	printf 'Description: A signed macOS installer package for `pkg-config` %s.\n' "$(version)" >> $@
 
 $(TMP)/distribution.xml \
 $(TMP)/resources/welcome.html : $(TMP)/% : % | $$(dir $$@)

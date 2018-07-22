@@ -15,6 +15,6 @@
     <choice id="cc.donm.pkg.pkg-config">
         <pkg-ref id="cc.donm.pkg.pkg-config"/>
     </choice>
-    <pkg-ref id="cc.donm.pkg.pkg-config">pkg-config-{{version}}.pkg</pkg-ref>
+    <pkg-ref id="cc.donm.pkg.pkg-config">pkg-config.pkg</pkg-ref>
 
 </installer-gui-script>
