@@ -1,7 +1,8 @@
 TMP ?= $(abspath tmp)
 
 version := 0.29.2
-revision := 1
+revision := 2
+archs := arm64 x86_64
 
 
 .SECONDEXPANSION :
@@ -17,6 +18,18 @@ clean :
 	-rm -rf $(TMP)
 
 
+.PHONY : check
+check :
+	test "$(shell lipo -archs $(TMP)/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
+
+
+##### compilation flags ##########
+
+arch_flags = $(patsubst %,-arch %,$(archs))
+
+CFLAGS += $(arch_flags)
+
+
 ##### dist ##########
 
 dist_sources := $(shell find dist -type f \! -name .DS_Store)
@@ -28,7 +41,11 @@ $(TMP)/build/pkg-config : $(TMP)/build/config.status $(dist_sources)
 	cd $(TMP)/build && $(MAKE)
 
 $(TMP)/build/config.status : dist/configure | $$(dir $$@)
-	cd $(TMP)/build && sh $(abspath $<) --with-internal-glib 
+	cd $(TMP)/build \
+		&& sh $(abspath $<) \
+			CFLAGS='$(CFLAGS)' \
+			--disable-silent-rules \
+			--with-internal-glib
 
 $(TMP)/build \
 $(TMP)/install :
