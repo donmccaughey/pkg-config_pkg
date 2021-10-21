@@ -102,6 +102,7 @@ pkg-config-$(version).pkg : \
 		$(TMP)/build-report.txt \
         $(TMP)/distribution.xml \
         $(TMP)/resources/background.png \
+		$(TMP)/resources/background-darkAqua.png \
         $(TMP)/resources/license.html \
         $(TMP)/resources/welcome.html
 	productbuild \
@@ -137,6 +138,7 @@ $(TMP)/resources/welcome.html : $(TMP)/% : % | $$(dir $$@)
 		$< > $@
 
 $(TMP)/resources/background.png \
+$(TMP)/resources/background-darkAqua.png \
 $(TMP)/resources/license.html : $(TMP)/% : % | $$(dir $$@)
 	cp $< $@
 
