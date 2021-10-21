@@ -84,6 +84,7 @@ $(TMP)/install/usr/local/bin :
 
 ##### product ##########
 
+arch_list := $(shell printf '%s' "$(archs)" | sed "s/ / and /g")
 date := $(shell date '+%Y-%m-%d')
 macos:=$(shell \
 	system_profiler -detailLevel mini SPSoftwareDataType \
@@ -114,21 +115,25 @@ pkg-config-$(version).pkg : \
 $(TMP)/build-report.txt : | $$(dir $$@)
 	printf 'Build Date: %s\n' "$(date)" > $@
 	printf 'Software Version: %s\n' "$(version)" >> $@
+	printf 'Architectures: %s\n' "$(arch_list)" >> $@
 	printf 'Installer Revision: %s\n' "$(revision)" >> $@
 	printf 'macOS Version: %s\n' "$(macos)" >> $@
 	printf 'Xcode Version: %s\n' "$(xcode)" >> $@
 	printf 'Tag Version: v%s-r%s\n' "$(version)" "$(revision)" >> $@
+	printf 'TMP directory: %s\n' "$(TMP)" >> $@
+	printf 'CFLAGS: %s\n' "$(CFLAGS)" >> $@
 	printf 'Release Title: pkg-config %s for macOS rev %s\n' "$(version)" "$(revision)" >> $@
 	printf 'Description: A signed macOS installer package for `pkg-config` %s.\n' "$(version)" >> $@
 
 $(TMP)/distribution.xml \
 $(TMP)/resources/welcome.html : $(TMP)/% : % | $$(dir $$@)
 	sed \
-		-e s/{{date}}/$(date)/g \
-		-e s/{{macos}}/$(macos)/g \
-		-e s/{{revision}}/$(revision)/g \
-		-e s/{{version}}/$(version)/g \
-		-e s/{{xcode}}/$(xcode)/g \
+		-e 's/{{arch_list}}/$(arch_list)/g' \
+		-e 's/{{date}}/$(date)/g' \
+		-e 's/{{macos}}/$(macos)/g' \
+		-e 's/{{revision}}/$(revision)/g' \
+		-e 's/{{version}}/$(version)/g' \
+		-e 's/{{xcode}}/$(xcode)/g' \
 		$< > $@
 
 $(TMP)/resources/background.png \
