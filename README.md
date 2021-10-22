@@ -11,7 +11,12 @@ libraries. It contains the source distribution for `pkg-config` 0.29.2.
 The [`Makefile`][2] in the project root directory builds the installer package.
 The following makefile variables can be set from the command line:
 
-- `INSTALLER_SIGNING_ID`: The name of the 
+- `APP_SIGNING_ID`: The name of the 
+    [Apple _Developer ID Application_ certificate][3] used to sign the 
+    `nginx` executable.  The certificate must be installed on the build 
+    machine's Keychain.  Defaults to "Developer ID Application: Donald 
+    McCaughey" if not specified.
+-- `INSTALLER_SIGNING_ID`: The name of the 
     [Apple _Developer ID Installer_ certificate][3] used to sign the 
     installer.  The certificate must be installed on the build machine's
     Keychain.  Defaults to "Developer ID Installer: Donald McCaughey" if 
@@ -22,9 +27,9 @@ The following makefile variables can be set from the command line:
 [2]: https://github.com/donmccaughey/pkg-config_pkg/blob/master/Makefile
 [3]: https://developer.apple.com/account/resources/certificates/list
 
-To build and sign the installer, run:
+To build and sign the executable and installer, run:
 
-        $ make [INSTALLER_SIGNING_ID="<cert name>"] [TMP="<build dir>"]
+        $ make [APP_SIGNING_ID="<cert name 1>"] [INSTALLER_SIGNING_ID="<cert name 2>"] [TMP="<build dir>"]
 
 Intermediate files are generated in the temp directory; the signed installer 
 package is written into the project root with the name `pkg-config-0.29.2.pkg`.  

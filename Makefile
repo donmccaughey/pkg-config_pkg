@@ -1,3 +1,4 @@
+APP_SIGNING_ID ?= Developer ID Application: Donald McCaughey
 INSTALLER_SIGNING_ID ?= Developer ID Installer: Donald McCaughey
 TMP ?= $(abspath tmp)
 
@@ -22,6 +23,8 @@ clean :
 .PHONY : check
 check :
 	test "$(shell lipo -archs $(TMP)/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
+	codesign --verify --strict $(TMP)/install/usr/local/bin/pkg-config
+	pkgutil --check-signature pkg-config-$(version).pkg
 
 
 ##### compilation flags ##########
@@ -55,10 +58,20 @@ $(TMP)/install :
 
 ##### pkg ##########
 
+# sign executable
+
+$(TMP)/signed.stamp.txt :  $(TMP)/install/usr/local/bin/pkg-config | $$(dir $$@)
+	xcrun codesign \
+		--sign "$(APP_SIGNING_ID)" \
+		--options runtime \
+		$<
+	date > $@
+
 $(TMP)/pkg-config.pkg : \
         $(TMP)/install/etc/paths.d/pkg-config.path \
         $(TMP)/install/usr/local/bin/pkg-config \
-		$(TMP)/install/usr/local/bin/uninstall-pkg-config
+		$(TMP)/install/usr/local/bin/uninstall-pkg-config \
+		$(TMP)/signed.stamp.txt
 	pkgbuild \
         --root $(TMP)/install \
         --identifier cc.donm.pkg.pkg-config \
