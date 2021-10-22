@@ -1,3 +1,4 @@
+INSTALLER_SIGNING_ID ?= Developer ID Installer: Donald McCaughey
 TMP ?= $(abspath tmp)
 
 version := 0.29.2
@@ -110,7 +111,7 @@ pkg-config-$(version).pkg : \
         --resources $(TMP)/resources \
         --package-path $(TMP) \
         --version v$(version)-r$(revision) \
-        --sign 'Donald McCaughey' \
+        --sign '$(INSTALLER_SIGNING_ID)' \
         $@
 
 $(TMP)/build-report.txt : | $$(dir $$@)
@@ -121,6 +122,7 @@ $(TMP)/build-report.txt : | $$(dir $$@)
 	printf 'macOS Version: %s\n' "$(macos)" >> $@
 	printf 'Xcode Version: %s\n' "$(xcode)" >> $@
 	printf 'Tag Version: v%s-r%s\n' "$(version)" "$(revision)" >> $@
+	printf 'INSTALLER_SIGNING_ID: %s\n' "$(INSTALLER_SIGNING_ID)" >> $@
 	printf 'TMP directory: %s\n' "$(TMP)" >> $@
 	printf 'CFLAGS: %s\n' "$(CFLAGS)" >> $@
 	printf 'Release Title: pkg-config %s for macOS rev %s\n' "$(version)" "$(revision)" >> $@
