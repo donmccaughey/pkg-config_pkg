@@ -1,5 +1,6 @@
 APP_SIGNING_ID ?= Developer ID Application: Donald McCaughey
 INSTALLER_SIGNING_ID ?= Developer ID Installer: Donald McCaughey
+NOTARIZATION_KEYCHAIN_PROFILE ?= Donald McCaughey
 TMP ?= $(abspath tmp)
 
 version := 0.29.2
@@ -10,8 +11,12 @@ archs := arm64 x86_64
 .SECONDEXPANSION :
 
 
-.PHONY : all
-all : pkg-config-$(version).pkg
+.PHONY : signed-package
+signed-package : pkg-config-$(version).pkg
+
+
+.PHONY : notarize
+notarize : $(TMP)/stapled.stamp.txt
 
 
 .PHONY : clean
@@ -25,6 +30,8 @@ check :
 	test "$(shell lipo -archs $(TMP)/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
 	codesign --verify --strict $(TMP)/install/usr/local/bin/pkg-config
 	pkgutil --check-signature pkg-config-$(version).pkg
+	spctl --assess --type install pkg-config-$(version).pkg
+	xcrun stapler validate pkg-config-$(version).pkg
 
 
 ##### compilation flags ##########
@@ -49,6 +56,7 @@ $(TMP)/build/config.status : dist/configure | $$(dir $$@)
 		&& sh $(abspath $<) \
 			CFLAGS='$(CFLAGS)' \
 			--disable-silent-rules \
+			--disable-host-tool \
 			--with-internal-glib
 
 $(TMP)/build \
@@ -135,6 +143,7 @@ $(TMP)/build-report.txt : | $$(dir $$@)
 	printf 'macOS Version: %s\n' "$(macos)" >> $@
 	printf 'Xcode Version: %s\n' "$(xcode)" >> $@
 	printf 'Tag Version: v%s-r%s\n' "$(version)" "$(revision)" >> $@
+	printf 'APP_SIGNING_ID: %s\n' "$(APP_SIGNING_ID)" >> $@
 	printf 'INSTALLER_SIGNING_ID: %s\n' "$(INSTALLER_SIGNING_ID)" >> $@
 	printf 'TMP directory: %s\n' "$(TMP)" >> $@
 	printf 'CFLAGS: %s\n' "$(CFLAGS)" >> $@
@@ -160,4 +169,29 @@ $(TMP)/resources/license.html : $(TMP)/% : % | $$(dir $$@)
 $(TMP) \
 $(TMP)/resources :
 	mkdir -p $@
+
+
+##### notarization ##########
+
+$(TMP)/submit-log.json : pkg-config-$(version).pkg | $$(dir $$@)
+	xcrun notarytool submit $< \
+		--keychain-profile "$(NOTARIZATION_KEYCHAIN_PROFILE)" \
+		--output-format json \
+		--wait \
+		> $@
+
+$(TMP)/submission-id.txt : $(TMP)/submit-log.json | $$(dir $$@)
+	jq --raw-output '.id' < $< > $@
+
+$(TMP)/notarization-log.json : $(TMP)/submission-id.txt | $$(dir $$@)
+	xcrun notarytool log "$$(<$<)" \
+		--keychain-profile "$(NOTARIZATION_KEYCHAIN_PROFILE)" \
+		$@
+
+$(TMP)/notarized.stamp.txt : $(TMP)/notarization-log.json | $$(dir $$@)
+	test "$$(jq --raw-output '.status' < $<)" = "Accepted"
+	date > $@
+
+$(TMP)/stapled.stamp.txt : pkg-config-$(version).pkg $(TMP)/notarized.stamp.txt
+	xcrun stapler staple $< && date > $@
 
