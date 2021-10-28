@@ -99,7 +99,7 @@ The `--sync` option adds the credentials to the user's iCloud Keychain.
 
 ## License
 
-The installer and related scripts are copyright (c) 2018 Don McCaughey.
+The installer and related scripts are copyright (c) 2021 Don McCaughey.
 `pkg-config` and the installer are distributed under the GNU General Public 
 License, version 2.  See the LICENSE file for details.
 
