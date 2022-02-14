@@ -31,6 +31,7 @@ clean :
 .PHONY : check
 check :
 	test "$(shell lipo -archs $(TMP)/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
+	test "$(shell ./tools/dylibs --no-sys-libs --count $(TMP)/install/usr/local/bin/pkg-config) dylibs" = "0 dylibs"
 	codesign --verify --strict $(TMP)/install/usr/local/bin/pkg-config
 	pkgutil --check-signature pkg-config-$(ver).pkg
 	spctl --assess --type install pkg-config-$(ver).pkg
