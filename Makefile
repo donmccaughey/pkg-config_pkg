@@ -4,15 +4,18 @@ NOTARIZATION_KEYCHAIN_PROFILE ?= Donald McCaughey
 TMP ?= $(abspath tmp)
 
 version := 0.29.2
-revision := 2
+revision := 3
 archs := arm64 x86_64
+
+rev := $(if $(patsubst 1,,$(revision)),-r$(revision),)
+ver := $(version)$(rev)
 
 
 .SECONDEXPANSION :
 
 
 .PHONY : signed-package
-signed-package : pkg-config-$(version).pkg
+signed-package : pkg-config-$(ver).pkg
 
 
 .PHONY : notarize
@@ -29,9 +32,9 @@ clean :
 check :
 	test "$(shell lipo -archs $(TMP)/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
 	codesign --verify --strict $(TMP)/install/usr/local/bin/pkg-config
-	pkgutil --check-signature pkg-config-$(version).pkg
-	spctl --assess --type install pkg-config-$(version).pkg
-	xcrun stapler validate pkg-config-$(version).pkg
+	pkgutil --check-signature pkg-config-$(ver).pkg
+	spctl --assess --type install pkg-config-$(ver).pkg
+	xcrun stapler validate pkg-config-$(ver).pkg
 
 
 ##### compilation flags ##########
@@ -119,7 +122,7 @@ xcode:=$(shell \
 	| awk -F ' ' '{print $$2}' \
 	)
 
-pkg-config-$(version).pkg : \
+pkg-config-$(ver).pkg : \
         $(TMP)/pkg-config.pkg \
 		$(TMP)/build-report.txt \
         $(TMP)/distribution.xml \
@@ -174,7 +177,7 @@ $(TMP)/resources :
 
 ##### notarization ##########
 
-$(TMP)/submit-log.json : pkg-config-$(version).pkg | $$(dir $$@)
+$(TMP)/submit-log.json : pkg-config-$(ver).pkg | $$(dir $$@)
 	xcrun notarytool submit $< \
 		--keychain-profile "$(NOTARIZATION_KEYCHAIN_PROFILE)" \
 		--output-format json \
@@ -193,7 +196,7 @@ $(TMP)/notarized.stamp.txt : $(TMP)/notarization-log.json | $$(dir $$@)
 	test "$$(jq --raw-output '.status' < $<)" = "Accepted"
 	date > $@
 
-$(TMP)/stapled.stamp.txt : pkg-config-$(version).pkg $(TMP)/notarized.stamp.txt
+$(TMP)/stapled.stamp.txt : pkg-config-$(ver).pkg $(TMP)/notarized.stamp.txt
 	xcrun stapler staple $<
 	date > $@
 
