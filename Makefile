@@ -30,12 +30,19 @@ clean :
 
 .PHONY : check
 check :
+	test "$(shell lipo -archs $(TMP)/libiconv/install/usr/local/lib/libiconv.a)" = "x86_64 arm64"
 	test "$(shell lipo -archs $(TMP)/pkg-config/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
 	test "$(shell ./tools/dylibs --no-sys-libs --count $(TMP)/pkg-config/install/usr/local/bin/pkg-config) dylibs" = "0 dylibs"
 	codesign --verify --strict $(TMP)/pkg-config/install/usr/local/bin/pkg-config
 	pkgutil --check-signature pkg-config-$(ver).pkg
 	spctl --assess --type install pkg-config-$(ver).pkg
 	xcrun stapler validate pkg-config-$(ver).pkg
+
+
+.PHONY : libiconv
+libiconv : \
+			$(TMP)/libiconv/install/usr/local/include/iconv.h \
+			$(TMP)/libiconv/install/usr/local/lib/libiconv.a
 
 
 ##### compilation flags ##########
@@ -45,23 +52,68 @@ arch_flags = $(patsubst %,-arch %,$(archs))
 CFLAGS += $(arch_flags)
 
 
+##### libiconv ##########
+
+libiconv_config_options := \
+			--disable-shared \
+			CFLAGS='$(CFLAGS)'
+
+libiconv_sources := $(shell find libiconv -type f \! -name .DS_Store)
+
+$(TMP)/libiconv/install/usr/local/include/iconv.h \
+$(TMP)/libiconv/install/usr/local/lib/libiconv.a : $(TMP)/libiconv/installed.stamp.txt
+	@:
+
+$(TMP)/libiconv/installed.stamp.txt : \
+			$(TMP)/libiconv/build/include/iconv.h \
+			$(TMP)/libiconv/build/lib/.libs/libiconv.a \
+			| $$(dir $$@)
+	cd $(TMP)/libiconv/build && $(MAKE) DESTDIR=$(TMP)/libiconv/install install
+	date > $@
+
+$(TMP)/libiconv/build/include/iconv.h \
+$(TMP)/libiconv/build/lib/.libs/libiconv.a : $(TMP)/libiconv/built.stamp.txt | $$(dir $$@)
+	@:
+
+$(TMP)/libiconv/built.stamp.txt : $(TMP)/libiconv/configured.stamp.txt | $$(dir $$@)
+	cd $(TMP)/libiconv/build && $(MAKE)
+	date > $@
+
+$(TMP)/libiconv/configured.stamp.txt : $(libiconv_sources) | $(TMP)/libiconv/build
+	cd $(TMP)/libiconv/build \
+			&& $(abspath libiconv/configure) $(libiconv_config_options)
+	date > $@
+
+$(TMP)/libiconv \
+$(TMP)/libiconv/build \
+$(TMP)/libiconv/install :
+	mkdir -p $@
+
+
 ##### pkg-config ##########
 
-dist_sources := $(shell find pkg-config -type f \! -name .DS_Store)
+pkg-config_config_options := \
+			--disable-silent-rules \
+			--disable-host-tool \
+			--with-internal-glib \
+			CFLAGS='$(CFLAGS) -I $(TMP)/libiconv/install/usr/local/include' \
+			LDFLAGS='$(LDFLAGS) -L$(TMP)/libiconv/install/usr/local/lib'
+
+pkg-config_sources := $(shell find pkg-config -type f \! -name .DS_Store)
 
 $(TMP)/pkg-config/install/usr/local/bin/pkg-config : $(TMP)/pkg-config/build/pkg-config | $(TMP)/pkg-config/install
 	cd $(TMP)/pkg-config/build && $(MAKE) DESTDIR=$(TMP)/pkg-config/install install
 
-$(TMP)/pkg-config/build/pkg-config : $(TMP)/pkg-config/build/config.status $(dist_sources)
+$(TMP)/pkg-config/build/pkg-config : $(TMP)/pkg-config/build/config.status $(pkg-config_sources)
 	cd $(TMP)/pkg-config/build && $(MAKE)
 
-$(TMP)/pkg-config/build/config.status : pkg-config/configure | $$(dir $$@)
+$(TMP)/pkg-config/build/config.status : \
+			pkg-config/configure \
+			$(TMP)/libiconv/install/usr/local/include/iconv.h \
+			$(TMP)/libiconv/install/usr/local/lib/libiconv.a \
+			| $$(dir $$@)
 	cd $(TMP)/pkg-config/build \
-		&& sh $(abspath $<) \
-			CFLAGS='$(CFLAGS)' \
-			--disable-silent-rules \
-			--disable-host-tool \
-			--with-internal-glib
+		&& sh $(abspath $<) $(pkg-config_config_options)
 
 $(TMP)/pkg-config/build \
 $(TMP)/pkg-config/install :
