@@ -30,9 +30,9 @@ clean :
 
 .PHONY : check
 check :
-	test "$(shell lipo -archs $(TMP)/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
-	test "$(shell ./tools/dylibs --no-sys-libs --count $(TMP)/install/usr/local/bin/pkg-config) dylibs" = "0 dylibs"
-	codesign --verify --strict $(TMP)/install/usr/local/bin/pkg-config
+	test "$(shell lipo -archs $(TMP)/pkg-config/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
+	test "$(shell ./tools/dylibs --no-sys-libs --count $(TMP)/pkg-config/install/usr/local/bin/pkg-config) dylibs" = "0 dylibs"
+	codesign --verify --strict $(TMP)/pkg-config/install/usr/local/bin/pkg-config
 	pkgutil --check-signature pkg-config-$(ver).pkg
 	spctl --assess --type install pkg-config-$(ver).pkg
 	xcrun stapler validate pkg-config-$(ver).pkg
@@ -45,26 +45,26 @@ arch_flags = $(patsubst %,-arch %,$(archs))
 CFLAGS += $(arch_flags)
 
 
-##### dist ##########
+##### pkg-config ##########
 
-dist_sources := $(shell find dist -type f \! -name .DS_Store)
+dist_sources := $(shell find pkg-config -type f \! -name .DS_Store)
 
-$(TMP)/install/usr/local/bin/pkg-config : $(TMP)/build/pkg-config | $(TMP)/install
-	cd $(TMP)/build && $(MAKE) DESTDIR=$(TMP)/install install
+$(TMP)/pkg-config/install/usr/local/bin/pkg-config : $(TMP)/pkg-config/build/pkg-config | $(TMP)/pkg-config/install
+	cd $(TMP)/pkg-config/build && $(MAKE) DESTDIR=$(TMP)/pkg-config/install install
 
-$(TMP)/build/pkg-config : $(TMP)/build/config.status $(dist_sources)
-	cd $(TMP)/build && $(MAKE)
+$(TMP)/pkg-config/build/pkg-config : $(TMP)/pkg-config/build/config.status $(dist_sources)
+	cd $(TMP)/pkg-config/build && $(MAKE)
 
-$(TMP)/build/config.status : dist/configure | $$(dir $$@)
-	cd $(TMP)/build \
+$(TMP)/pkg-config/build/config.status : pkg-config/configure | $$(dir $$@)
+	cd $(TMP)/pkg-config/build \
 		&& sh $(abspath $<) \
 			CFLAGS='$(CFLAGS)' \
 			--disable-silent-rules \
 			--disable-host-tool \
 			--with-internal-glib
 
-$(TMP)/build \
-$(TMP)/install :
+$(TMP)/pkg-config/build \
+$(TMP)/pkg-config/install :
 	mkdir -p $@
 
 
@@ -72,7 +72,7 @@ $(TMP)/install :
 
 # sign executable
 
-$(TMP)/signed.stamp.txt :  $(TMP)/install/usr/local/bin/pkg-config | $$(dir $$@)
+$(TMP)/signed.stamp.txt :  $(TMP)/pkg-config/install/usr/local/bin/pkg-config | $$(dir $$@)
 	xcrun codesign \
 		--sign "$(APP_SIGNING_ID)" \
 		--options runtime \
@@ -80,31 +80,31 @@ $(TMP)/signed.stamp.txt :  $(TMP)/install/usr/local/bin/pkg-config | $$(dir $$@)
 	date > $@
 
 $(TMP)/pkg-config.pkg : \
-        $(TMP)/install/etc/paths.d/pkg-config.path \
-        $(TMP)/install/usr/local/bin/pkg-config \
-		$(TMP)/install/usr/local/bin/uninstall-pkg-config \
+        $(TMP)/pkg-config/install/etc/paths.d/pkg-config.path \
+        $(TMP)/pkg-config/install/usr/local/bin/pkg-config \
+		$(TMP)/pkg-config/install/usr/local/bin/uninstall-pkg-config \
 		$(TMP)/signed.stamp.txt
 	pkgbuild \
-        --root $(TMP)/install \
+        --root $(TMP)/pkg-config/install \
         --identifier cc.donm.pkg.pkg-config \
         --ownership recommended \
         --version $(version) \
         $@
 
-$(TMP)/install/etc/paths.d/pkg-config.path : pkg-config.path | $$(dir $$@)
+$(TMP)/pkg-config/install/etc/paths.d/pkg-config.path : pkg-config.path | $$(dir $$@)
 	cp $< $@
 
-$(TMP)/install/usr/local/bin/uninstall-pkg-config : \
+$(TMP)/pkg-config/install/usr/local/bin/uninstall-pkg-config : \
 		uninstall-pkg-config \
-		$(TMP)/install/usr/local/bin/pkg-config \
+		$(TMP)/pkg-config/install/usr/local/bin/pkg-config \
 		| $$(dir $$@)
 	cp $< $@
-	cd $(TMP)/install && find . -type f \! -name .DS_STORE | sort >> $@
+	cd $(TMP)/pkg-config/install && find . -type f \! -name .DS_STORE | sort >> $@
 	sed -e 's/^\./rm -f /g' -i '' $@
 	chmod a+x $@
 
-$(TMP)/install/etc/paths.d \
-$(TMP)/install/usr/local/bin :
+$(TMP)/pkg-config/install/etc/paths.d \
+$(TMP)/pkg-config/install/usr/local/bin :
 	mkdir -p $@
 
 
