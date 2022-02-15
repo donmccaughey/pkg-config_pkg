@@ -103,6 +103,10 @@ pkg-config_sources := $(shell find pkg-config -type f \! -name .DS_Store)
 
 $(TMP)/pkg-config/install/usr/local/bin/pkg-config : $(TMP)/pkg-config/build/pkg-config | $(TMP)/pkg-config/install
 	cd $(TMP)/pkg-config/build && $(MAKE) DESTDIR=$(TMP)/pkg-config/install install
+	xcrun codesign \
+		--sign "$(APP_SIGNING_ID)" \
+		--options runtime \
+		$@
 
 $(TMP)/pkg-config/build/pkg-config : $(TMP)/pkg-config/build/config.status $(pkg-config_sources)
 	cd $(TMP)/pkg-config/build && $(MAKE)
@@ -122,20 +126,10 @@ $(TMP)/pkg-config/install :
 
 ##### pkg ##########
 
-# sign executable
-
-$(TMP)/signed.stamp.txt :  $(TMP)/pkg-config/install/usr/local/bin/pkg-config | $$(dir $$@)
-	xcrun codesign \
-		--sign "$(APP_SIGNING_ID)" \
-		--options runtime \
-		$<
-	date > $@
-
 $(TMP)/pkg-config.pkg : \
         $(TMP)/pkg-config/install/etc/paths.d/pkg-config.path \
         $(TMP)/pkg-config/install/usr/local/bin/pkg-config \
-		$(TMP)/pkg-config/install/usr/local/bin/uninstall-pkg-config \
-		$(TMP)/signed.stamp.txt
+		$(TMP)/pkg-config/install/usr/local/bin/uninstall-pkg-config
 	pkgbuild \
         --root $(TMP)/pkg-config/install \
         --identifier cc.donm.pkg.pkg-config \
