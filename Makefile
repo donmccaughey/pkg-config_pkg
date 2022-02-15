@@ -127,8 +127,6 @@ $(TMP)/pkg-config/install :
 ##### pkg ##########
 
 $(TMP)/pkg-config.pkg : \
-        $(TMP)/pkg-config/install/etc/paths.d/pkg-config.path \
-        $(TMP)/pkg-config/install/usr/local/bin/pkg-config \
 		$(TMP)/pkg-config/install/usr/local/bin/uninstall-pkg-config
 	pkgbuild \
         --root $(TMP)/pkg-config/install \
@@ -142,6 +140,7 @@ $(TMP)/pkg-config/install/etc/paths.d/pkg-config.path : pkg-config.path | $$(dir
 
 $(TMP)/pkg-config/install/usr/local/bin/uninstall-pkg-config : \
 		uninstall-pkg-config \
+        $(TMP)/pkg-config/install/etc/paths.d/pkg-config.path \
 		$(TMP)/pkg-config/install/usr/local/bin/pkg-config \
 		| $$(dir $$@)
 	cp $< $@
