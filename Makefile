@@ -4,6 +4,7 @@ NOTARIZATION_KEYCHAIN_PROFILE ?= Donald McCaughey
 TMP ?= $(abspath tmp)
 
 version := 0.29.2
+libiconv_version := 1.16
 revision := 3
 archs := arm64 x86_64
 
@@ -187,6 +188,7 @@ $(TMP)/pkg-config-$(ver)-unnotarized.pkg : \
 $(TMP)/build-report.txt : | $$(dir $$@)
 	printf 'Build Date: %s\n' "$(date)" > $@
 	printf 'Software Version: %s\n' "$(version)" >> $@
+	printf 'libiconv Version: %s\n' "$(libiconv_version)" >> $@
 	printf 'Installer Revision: %s\n' "$(revision)" >> $@
 	printf 'Architectures: %s\n' "$(arch_list)" >> $@
 	printf 'macOS Version: %s\n' "$(macos)" >> $@
@@ -206,6 +208,7 @@ $(TMP)/resources/welcome.html : $(TMP)/% : % | $$(dir $$@)
 		-e 's/{{arch_list}}/$(arch_list)/g' \
 		-e 's/{{date}}/$(date)/g' \
 		-e 's/{{macos}}/$(macos)/g' \
+		-e 's/{{libiconv_version}}/$(libiconv_version)/g' \
 		-e 's/{{revision}}/$(revision)/g' \
 		-e 's/{{version}}/$(version)/g' \
 		-e 's/{{xcode}}/$(xcode)/g' \
