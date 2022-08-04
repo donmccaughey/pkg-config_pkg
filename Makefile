@@ -200,7 +200,8 @@ $(TMP)/build-report.txt : | $$(dir $$@)
 	printf 'CFLAGS: %s\n' "$(CFLAGS)" >> $@
 	printf 'Tag: v%s-r%s\n' "$(version)" "$(revision)" >> $@
 	printf 'Tag Title: pkg-config %s for macOS rev %s\n' "$(version)" "$(revision)" >> $@
-	printf 'Tag Message: A signed and notarized universal installer package for `pkg-config` %s.\n' "$(version)" >> $@
+	printf 'Tag Message: A signed and notarized universal installer package for `pkg-config` %s, built with libiconv %s.\n' \
+		"$(version)" "$(libiconv_version)" >> $@
 
 $(TMP)/distribution.xml \
 $(TMP)/resources/welcome.html : $(TMP)/% : % | $$(dir $$@)
