@@ -4,8 +4,8 @@ NOTARIZATION_KEYCHAIN_PROFILE ?= Donald McCaughey
 TMP ?= $(abspath tmp)
 
 version := 0.29.2
-libiconv_version := 1.17
-revision := 4
+libiconv_version := 1.18
+revision := 5
 archs := arm64 x86_64
 
 rev := $(if $(patsubst 1,,$(revision)),-r$(revision),)
