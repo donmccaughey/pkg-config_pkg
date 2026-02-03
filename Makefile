@@ -97,7 +97,7 @@ pkg-config_config_options := \
 			--disable-silent-rules \
 			--disable-host-tool \
 			--with-internal-glib \
-			CFLAGS='$(CFLAGS) -I $(TMP)/libiconv/install/usr/local/include' \
+			CFLAGS='$(CFLAGS) -I $(TMP)/libiconv/install/usr/local/include -Wno-error=int-conversion' \
 			LDFLAGS='$(LDFLAGS) -L$(TMP)/libiconv/install/usr/local/lib'
 
 pkg-config_sources := $(shell find pkg-config -type f \! -name .DS_Store)
