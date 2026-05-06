@@ -36,6 +36,10 @@ clean :
 check : $(TMP)/checked-package.stamp.txt
 
 
+.PHONY : release
+release : $(TMP)/released.stamp.txt
+
+
 .PHONY : libiconv
 libiconv : \
 			$(TMP)/libiconv/install/usr/local/include/iconv.h \
@@ -254,3 +258,23 @@ $(TMP)/checked-package.stamp.txt : pkg-config-$(ver).pkg
 	spctl --assess --type install pkg-config-$(ver).pkg
 	xcrun stapler validate pkg-config-$(ver).pkg
 	date > $@
+
+
+##### release ##########
+
+$(TMP)/tagged.stamp.txt : $(TMP)/checked-package.stamp.txt
+	git diff --quiet && git diff --cached --quiet
+	git tag \
+	    --annotate $(tag) \
+		--message="$(tag-title)" \
+		--message="$$(echo "$(tag-message)" | fold -s)"
+	git push origin $(tag)
+	date > $@
+
+$(TMP)/released.stamp.txt : $(TMP)/tagged.stamp.txt
+	gh release create $(tag) \
+	    pkg-config-$(ver).pkg \
+		--draft \
+		--notes "$(tag-message)" \
+		--title "$(tag-title)"
+	date -> $@
