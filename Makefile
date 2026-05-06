@@ -33,14 +33,7 @@ clean :
 
 
 .PHONY : check
-check :
-	test "$(shell lipo -archs $(TMP)/libiconv/install/usr/local/lib/libiconv.a)" = "x86_64 arm64"
-	test "$(shell lipo -archs $(TMP)/pkg-config/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
-	test "$(shell ./tools/dylibs --no-sys-libs --count $(TMP)/pkg-config/install/usr/local/bin/pkg-config) dylibs" = "0 dylibs"
-	codesign --verify --strict $(TMP)/pkg-config/install/usr/local/bin/pkg-config
-	pkgutil --check-signature pkg-config-$(ver).pkg
-	spctl --assess --type install pkg-config-$(ver).pkg
-	xcrun stapler validate pkg-config-$(ver).pkg
+check : $(TMP)/checked-package.stamp.txt
 
 
 .PHONY : libiconv
@@ -251,3 +244,13 @@ $(TMP)/notarized.stamp.txt : $(TMP)/notarization-log.json | $$(dir $$@)
 pkg-config-$(ver).pkg : $(TMP)/pkg-config-$(ver)-unnotarized.pkg $(TMP)/notarized.stamp.txt
 	cp $< $@
 	xcrun stapler staple $@
+
+$(TMP)/checked-package.stamp.txt : pkg-config-$(ver).pkg
+	test "$(shell lipo -archs $(TMP)/libiconv/install/usr/local/lib/libiconv.a)" = "x86_64 arm64"
+	test "$(shell lipo -archs $(TMP)/pkg-config/install/usr/local/bin/pkg-config)" = "x86_64 arm64"
+	test "$(shell ./tools/dylibs --no-sys-libs --count $(TMP)/pkg-config/install/usr/local/bin/pkg-config) dylibs" = "0 dylibs"
+	codesign --verify --strict $(TMP)/pkg-config/install/usr/local/bin/pkg-config
+	pkgutil --check-signature pkg-config-$(ver).pkg
+	spctl --assess --type install pkg-config-$(ver).pkg
+	xcrun stapler validate pkg-config-$(ver).pkg
+	date > $@
