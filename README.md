@@ -4,7 +4,7 @@ pkg-config 0.29.2 for macOS
 This project builds a signed universal macOS installer package for
 [`pkg-config`][1], a helper tool used when compiling applications and
 libraries. It contains the source distribution for `pkg-config` 0.29.2 and
-[libiconv 1.18][2].
+[libiconv 1.19][2].
 
 [1]: http://www.freedesktop.org/wiki/Software/pkg-config/ "pkg-config"
 [2]: https://www.gnu.org/software/libiconv/
@@ -47,7 +47,7 @@ To build and sign the executable and installer, run:
         $ make [APP_SIGNING_ID="<cert name 1>"] [INSTALLER_SIGNING_ID="<cert name 2>"] [TMP="<build dir>"]
 
 Intermediate files are generated in the temp directory; the signed installer 
-package is written into the project root with the name `pkg-config-0.29.2-r5.pkg`.  
+package is written into the project root with the name `pkg-config-0.29.2-r6.pkg`.  
 
 To notarize the signed installer package, run:
 
@@ -58,7 +58,7 @@ success.  Check the file `$(TMP)/notarization-log.json` for detailed
 information if notarization fails.  The signed installer is stapled in place
 if notarization succeeds.  Use the command:
 
-        $ xcrun stapler validate --verbose pkg-config-0.29.2-r5.pkg
+        $ xcrun stapler validate --verbose pkg-config-0.29.2-r6.pkg
 
 to check the notarization state of the installer package.
 
@@ -100,4 +100,3 @@ The `--sync` option adds the credentials to the user's iCloud Keychain.
 The installer and related scripts are copyright (c) 2022 Don McCaughey.
 `pkg-config` and the installer are distributed under the GNU General Public 
 License, version 2.  See the LICENSE file for details.
-
